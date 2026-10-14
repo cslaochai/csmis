@@ -169,7 +169,8 @@ const router = createRouter({
 })
 
 // 登录守卫：无 token 一律去登录页；已登录访问登录页回首页
-router.beforeEach((to) => {
+// menus 只在 login() 里拉过一次、不持久化，刷新后必须在此补拉，否则侧边栏为空
+router.beforeEach(async (to) => {
   const auth = useAuthStore()
   const token = auth.token || localStorage.getItem('token')
   if (to.path === '/login') {
@@ -177,6 +178,13 @@ router.beforeEach((to) => {
   }
   if (!token) {
     return { path: '/login', replace: true }
+  }
+  if (auth.menus.length === 0) {
+    try {
+      await auth.fetchInfoAndMenus()
+    } catch (e) {
+      // 401 由 axios 拦截器整页跳登录，此处不阻断导航
+    }
   }
   return true
 })

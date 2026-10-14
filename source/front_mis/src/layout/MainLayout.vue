@@ -3,10 +3,10 @@
     <!-- 侧边栏 -->
     <el-aside width="220px" class="!bg-[#0B3B66] text-white flex flex-col">
       <div class="h-16 flex items-center gap-2 px-4 border-b border-white/10">
-        <el-icon :size="26"><FirstAidKit /></el-icon>
-        <div class="leading-tight">
-          <div class="text-[15px] font-bold tracking-wide">医保结算经办</div>
-          <div class="text-[11px] text-white/60">Medical Insurance Settlement</div>
+        <BrandMark :size="40" tone="light" />
+        <div class="leading-tight min-w-0">
+          <div class="text-[17px] font-bold tracking-wide">医保结算经办</div>
+          <div class="text-[10.5px] text-white/60 whitespace-nowrap">Medical Insurance</div>
         </div>
       </div>
       <el-scrollbar class="flex-1">
@@ -40,9 +40,6 @@
           </template>
         </el-menu>
       </el-scrollbar>
-      <div class="px-4 py-3 text-[11px] text-white/50 border-t border-white/10">
-        经办点：长沙市麓康医院<br />定点机构编码 H4301000001
-      </div>
     </el-aside>
 
     <!-- 主区 -->
@@ -108,6 +105,7 @@ import { ElMessage, ElMessageBox } from 'element-plus'
 import { useAuthStore } from '@/stores/auth'
 import { changePasswordApi } from '@/api/auth'
 import { dashboardSummary } from '@/api/insurance'
+import BrandMark from '@/components/BrandMark.vue'
 
 const route = useRoute()
 const router = useRouter()
