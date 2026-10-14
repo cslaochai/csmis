@@ -1,0 +1,35 @@
+# ============ 构建产物 ============
+target/
+node_modules/
+dist/
+dist-*/
+build/
+*.class
+*.jar
+*.war
+
+# ============ 日志与临时文件 ============
+*.log
+logs/
+*.tmp
+*.swp
+.DS_Store
+Thumbs.db
+
+# ============ 运行时上传产物 ============
+uploads/
+
+# ============ IDE / 本地环境覆盖 ============
+.idea/
+*.iml
+*.ipr
+*.iws
+.vscode/
+.env
+.env.local
+*.local
+
+# 本地真值配置（库口令 / JWT / 渠道密钥），只入 .example，见 README
+application-local.yml
+application-*-local.yml
+*-dev.yml
