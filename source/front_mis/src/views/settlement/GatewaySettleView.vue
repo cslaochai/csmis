@@ -1,9 +1,5 @@
 <template>
   <div class="space-y-3">
-    <!-- 顶部说明 -->
-    <el-alert type="info" :closable="false" show-icon
-      title="定点机构（HIS）通过 2304 结算信息上传接口实时报盘，平台侧独立核定统筹并登记台账，作为月度清算的「对方账」依据。" />
-
     <div class="his-card p-3">
       <div class="query-grid-wrap">
         <div class="query-grid">
