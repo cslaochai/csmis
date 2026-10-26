@@ -13,7 +13,9 @@ import com.mis.entity.MssDictType;
 import com.mis.mapper.MssDictDataMapper;
 import com.mis.mapper.MssDictTypeMapper;
 import com.mis.service.SystemDictService;
+import com.mis.vo.DictDataVO;
 import com.mis.vo.DictGroupVO;
+import com.mis.vo.DictTypeVO;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.BeanUtils;
 import org.springframework.stereotype.Service;
@@ -37,7 +39,7 @@ public class SystemDictServiceImpl implements SystemDictService {
     private final MssDictDataMapper dictDataMapper;
 
     @Override
-    public PageResult<MssDictType> typePage(String keyword, long pageNum, long pageSize) {
+    public PageResult<DictTypeVO> typePage(String keyword, long pageNum, long pageSize) {
         Page<MssDictType> page = dictTypeMapper.selectPage(new Page<>(pageNum, pageSize),
                 new LambdaQueryWrapper<MssDictType>()
                         .and(keyword != null && !keyword.isEmpty(), w -> w
@@ -45,27 +47,38 @@ public class SystemDictServiceImpl implements SystemDictService {
                                 .or()
                                 .like(MssDictType::getDictType, keyword))
                         .orderByAsc(MssDictType::getId));
-        return PageResult.of(page.getTotal(), page.getCurrent(), page.getSize(), page.getPages(), page.getRecords());
+        List<DictTypeVO> vos = page.getRecords().stream().map(this::toTypeVO).collect(Collectors.toList());
+        return PageResult.of(page.getTotal(), page.getCurrent(), page.getSize(), page.getPages(), vos);
     }
 
     @Override
-    public List<MssDictType> typeSelectList() {
+    public List<DictTypeVO> typeSelectList() {
         return dictTypeMapper.selectList(new LambdaQueryWrapper<MssDictType>()
-                .eq(MssDictType::getStatus, 1)
-                .orderByAsc(MssDictType::getId));
+                        .eq(MssDictType::getStatus, 1)
+                        .orderByAsc(MssDictType::getId))
+                .stream().map(this::toTypeVO).collect(Collectors.toList());
     }
 
     @Override
-    public MssDictType typeGetById(Long id) {
+    public DictTypeVO typeGetById(Long typeId, Long id) {
+        Long rid = typeId != null ? typeId : id;
+        if (rid == null) {
+            throw new BusinessException("字典类型ID不能为空");
+        }
+        return typeGetById(rid);
+    }
+
+    @Override
+    public DictTypeVO typeGetById(Long id) {
         MssDictType type = dictTypeMapper.selectById(id);
         if (type == null) {
             throw new BusinessException("字典类型不存在");
         }
-        return type;
+        return toTypeVO(type);
     }
 
     @Override
-    public MssDictType typeUpsert(DictTypeUpsertDTO dto) {
+    public DictTypeVO typeUpsert(DictTypeUpsertDTO dto) {
         MssDictType type = new MssDictType();
         BeanUtils.copyProperties(dto, type);
         String operator = operatorName();
@@ -85,7 +98,7 @@ public class SystemDictServiceImpl implements SystemDictService {
             type.setUpdateBy(operator);
             dictTypeMapper.updateById(type);
         }
-        return type;
+        return toTypeVO(type);
     }
 
     @Override
@@ -101,7 +114,7 @@ public class SystemDictServiceImpl implements SystemDictService {
     }
 
     @Override
-    public PageResult<MssDictData> dataPage(String dictType, String keyword, long pageNum, long pageSize) {
+    public PageResult<DictDataVO> dataPage(String dictType, String keyword, long pageNum, long pageSize) {
         Page<MssDictData> page = dictDataMapper.selectPage(new Page<>(pageNum, pageSize),
                 new LambdaQueryWrapper<MssDictData>()
                         .eq(dictType != null && !dictType.isEmpty(), MssDictData::getDictType, dictType)
@@ -111,30 +124,41 @@ public class SystemDictServiceImpl implements SystemDictService {
                                 .like(MssDictData::getDictValue, keyword))
                         .orderByAsc(MssDictData::getDictSort)
                         .orderByAsc(MssDictData::getId));
-        return PageResult.of(page.getTotal(), page.getCurrent(), page.getSize(), page.getPages(), page.getRecords());
+        List<DictDataVO> vos = page.getRecords().stream().map(this::toDataVO).collect(Collectors.toList());
+        return PageResult.of(page.getTotal(), page.getCurrent(), page.getSize(), page.getPages(), vos);
     }
 
     @Override
-    public MssDictData dataGetById(Long id) {
+    public DictDataVO dataGetById(Long dataId, Long id) {
+        Long rid = dataId != null ? dataId : id;
+        if (rid == null) {
+            throw new BusinessException("字典数据ID不能为空");
+        }
+        return dataGetById(rid);
+    }
+
+    @Override
+    public DictDataVO dataGetById(Long id) {
         MssDictData data = dictDataMapper.selectById(id);
         if (data == null) {
             throw new BusinessException("字典数据不存在");
         }
-        return data;
+        return toDataVO(data);
     }
 
     @Override
-    public List<MssDictData> dataSelectList(String dictTypes) {
+    public List<DictDataVO> dataSelectList(String dictTypes) {
         List<String> types = splitTypes(dictTypes);
         if (types.isEmpty()) {
             return new ArrayList<>();
         }
         return dictDataMapper.selectList(new LambdaQueryWrapper<MssDictData>()
-                .in(MssDictData::getDictType, types)
-                .eq(MssDictData::getStatus, 1)
-                .orderByAsc(MssDictData::getDictType)
-                .orderByAsc(MssDictData::getDictSort)
-                .orderByAsc(MssDictData::getId));
+                        .in(MssDictData::getDictType, types)
+                        .eq(MssDictData::getStatus, 1)
+                        .orderByAsc(MssDictData::getDictType)
+                        .orderByAsc(MssDictData::getDictSort)
+                        .orderByAsc(MssDictData::getId))
+                .stream().map(this::toDataVO).collect(Collectors.toList());
     }
 
     @Override
@@ -149,8 +173,9 @@ public class SystemDictServiceImpl implements SystemDictService {
                 .orderByAsc(MssDictData::getDictType)
                 .orderByAsc(MssDictData::getDictSort)
                 .orderByAsc(MssDictData::getId));
-        Map<String, List<MssDictData>> grouped = all.stream()
-                .collect(Collectors.groupingBy(MssDictData::getDictType, LinkedHashMap::new, Collectors.toList()));
+        Map<String, List<DictDataVO>> grouped = all.stream()
+                .collect(Collectors.groupingBy(MssDictData::getDictType, LinkedHashMap::new,
+                        Collectors.mapping(this::toDataVO, Collectors.toList())));
         List<DictGroupVO> out = new ArrayList<>();
         grouped.forEach((type, list) -> out.add(new DictGroupVO(type, list)));
         return out;
@@ -168,7 +193,7 @@ public class SystemDictServiceImpl implements SystemDictService {
     }
 
     @Override
-    public MssDictData dataUpsert(DictDataUpsertDTO dto) {
+    public DictDataVO dataUpsert(DictDataUpsertDTO dto) {
         MssDictData data = new MssDictData();
         BeanUtils.copyProperties(dto, data);
         String operator = operatorName();
@@ -183,7 +208,7 @@ public class SystemDictServiceImpl implements SystemDictService {
             data.setUpdateBy(operator);
             dictDataMapper.updateById(data);
         }
-        return data;
+        return toDataVO(data);
     }
 
     @Override
@@ -195,12 +220,25 @@ public class SystemDictServiceImpl implements SystemDictService {
     }
 
     @Override
-    public List<MssDictData> dataList(String dictType) {
+    public List<DictDataVO> dataList(String dictType) {
         return dictDataMapper.selectList(new LambdaQueryWrapper<MssDictData>()
-                .eq(MssDictData::getDictType, dictType)
-                .eq(MssDictData::getStatus, 1)
-                .orderByAsc(MssDictData::getDictSort)
-                .orderByAsc(MssDictData::getId));
+                        .eq(MssDictData::getDictType, dictType)
+                        .eq(MssDictData::getStatus, 1)
+                        .orderByAsc(MssDictData::getDictSort)
+                        .orderByAsc(MssDictData::getId))
+                .stream().map(this::toDataVO).collect(Collectors.toList());
+    }
+
+    private DictTypeVO toTypeVO(MssDictType type) {
+        DictTypeVO vo = new DictTypeVO();
+        BeanUtils.copyProperties(type, vo);
+        return vo;
+    }
+
+    private DictDataVO toDataVO(MssDictData data) {
+        DictDataVO vo = new DictDataVO();
+        BeanUtils.copyProperties(data, vo);
+        return vo;
     }
 
     private String operatorName() {

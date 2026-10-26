@@ -5,9 +5,9 @@ import com.mis.common.base.Result;
 import com.mis.dto.RuleQueryDTO;
 import com.mis.dto.RuleStatusDTO;
 import com.mis.dto.RuleUpsertDTO;
-import com.mis.entity.MssAuditRule;
 import com.mis.service.AuditRuleService;
 import com.mis.vo.ActionVO;
+import com.mis.vo.AuditRuleVO;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
@@ -25,7 +25,7 @@ public class SuperviseRuleController {
     private final AuditRuleService auditRuleService;
 
     @GetMapping("/listPage")
-    public Result<PageVO<MssAuditRule>> listPage(RuleQueryDTO query) {
+    public Result<PageVO<AuditRuleVO>> listPage(RuleQueryDTO query) {
         return Result.success(auditRuleService.rulePage(query));
     }
 
@@ -40,7 +40,7 @@ public class SuperviseRuleController {
     }
 
     @GetMapping("/selectList")
-    public Result<List<MssAuditRule>> selectList() {
+    public Result<List<AuditRuleVO>> selectList() {
         return Result.success(auditRuleService.enabledRules());
     }
 }

@@ -4,9 +4,8 @@ import com.mis.common.base.PageResult;
 import com.mis.dto.EmployeeQueryPageDTO;
 import com.mis.dto.EmployeeUpsertDTO;
 import com.mis.dto.QualificationBatchUpsertDTO;
-import com.mis.entity.MssEmployee;
-import com.mis.entity.MssEmployeeQualification;
 import com.mis.vo.EmployeeVO;
+import com.mis.vo.QualificationVO;
 
 import java.util.List;
 
@@ -19,12 +18,12 @@ public interface SystemEmployeeService {
 
     EmployeeVO detail(Long id);
 
-    MssEmployee upsert(EmployeeUpsertDTO dto);
+    EmployeeVO upsert(EmployeeUpsertDTO dto);
 
     void deleteById(Long id);
 
     /** 某员工的资格证书列表 */
-    List<MssEmployeeQualification> qualificationList(Long employeeId);
+    List<QualificationVO> qualificationList(Long employeeId);
 
     /** 批量保存资格证书（新增 + 更新，事务内） */
     void qualificationBatchUpsert(QualificationBatchUpsertDTO dto);

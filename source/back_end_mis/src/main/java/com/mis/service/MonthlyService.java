@@ -1,8 +1,8 @@
 package com.mis.service;
 
 import com.mis.common.base.PageResult;
-import com.mis.entity.JinbMonthly;
 import com.mis.vo.MonthlyResultVO;
+import com.mis.vo.MonthlyVO;
 
 /**
  * 月度申报→审核→拨付→年清算
@@ -20,5 +20,5 @@ public interface MonthlyService {
 
     MonthlyResultVO result(String month);
 
-    PageResult<JinbMonthly> page(int pageNum, int pageSize);
+    PageResult<MonthlyVO> page(int pageNum, int pageSize);
 }

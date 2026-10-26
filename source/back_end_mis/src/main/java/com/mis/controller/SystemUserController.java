@@ -3,7 +3,6 @@ package com.mis.controller;
 import com.mis.common.base.PageResult;
 import com.mis.common.base.Result;
 import com.mis.dto.*;
-import com.mis.entity.MssUser;
 import com.mis.service.SystemUserService;
 import com.mis.vo.UserVO;
 import jakarta.validation.Valid;
@@ -31,18 +30,18 @@ public class SystemUserController {
     }
 
     @GetMapping("/getById")
-    public Result<UserVO> getById(@RequestParam(required = false) Long id,
-                                  @RequestParam(required = false) Long userId) {
-        return Result.success(userService.detail(id != null ? id : userId));
+    public Result<UserVO> getById(@RequestParam(required = false) Long userId,
+                                  @RequestParam(required = false) Long id) {
+        return Result.success(userService.detail(userId, id));
     }
 
     @PostMapping("/upsert")
-    public Result<MssUser> upsert(@Valid @RequestBody UserUpsertDTO dto) {
+    public Result<UserVO> upsert(@Valid @RequestBody UserUpsertDTO dto) {
         return Result.success(dto.getId() == null ? "新增成功" : "修改成功", userService.upsert(dto));
     }
 
     @PostMapping("/userUpsert")
-    public Result<MssUser> userUpsert(@Valid @RequestBody UserUpsertDTO dto) {
+    public Result<UserVO> userUpsert(@Valid @RequestBody UserUpsertDTO dto) {
         return Result.success(dto.getId() == null ? "新增成功" : "修改成功", userService.upsert(dto));
     }
 
@@ -60,7 +59,7 @@ public class SystemUserController {
 
     @PostMapping("/deleteById")
     public Result<Void> deleteById(@RequestBody IdDTO dto) {
-        userService.deleteById(Long.valueOf(dto.getId()));
+        userService.deleteById(dto.getId());
         return Result.success("删除成功", null);
     }
 

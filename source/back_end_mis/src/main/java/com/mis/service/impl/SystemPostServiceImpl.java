@@ -17,6 +17,7 @@ import com.mis.mapper.MssEmployeeMapper;
 import com.mis.mapper.MssEmployeePostMapper;
 import com.mis.mapper.MssRoleMapper;
 import com.mis.service.SystemPostService;
+import com.mis.vo.EmployeeSelectVO;
 import com.mis.vo.PostVO;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -125,14 +126,25 @@ public class SystemPostServiceImpl implements SystemPostService {
     }
 
     @Override
-    public List<MssEmployee> employeeSelect(String keyword) {
+    public List<EmployeeSelectVO> employeeSelect(String keyword) {
         return employeeMapper.selectList(new LambdaQueryWrapper<MssEmployee>()
-                .and(keyword != null && !keyword.isEmpty(), w -> w
-                        .like(MssEmployee::getEmpName, keyword)
-                        .or()
-                        .like(MssEmployee::getEmpCode, keyword))
-                .orderByAsc(MssEmployee::getId)
-                .last("LIMIT 50"));
+                        .eq(MssEmployee::getStatus, 1)
+                        .and(keyword != null && !keyword.isEmpty(), w -> w
+                                .like(MssEmployee::getEmpName, keyword)
+                                .or()
+                                .like(MssEmployee::getEmpCode, keyword))
+                        .orderByAsc(MssEmployee::getId)
+                        .last("LIMIT 50"))
+                .stream().map(e -> {
+                    EmployeeSelectVO vo = new EmployeeSelectVO();
+                    vo.setId(e.getId());
+                    vo.setEmpCode(e.getEmpCode());
+                    vo.setEmpName(e.getEmpName());
+                    vo.setDeptId(e.getDeptId());
+                    vo.setDeptName(e.getDeptName());
+                    vo.setStatus(e.getStatus());
+                    return vo;
+                }).collect(Collectors.toList());
     }
 
     // ------------------------------------------------------------ 内部工具

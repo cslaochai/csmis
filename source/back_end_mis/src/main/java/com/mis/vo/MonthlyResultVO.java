@@ -1,9 +1,8 @@
 package com.mis.vo;
 
-import com.mis.entity.MisAllocation;
-import com.mis.entity.JinbMonthlyDeduct;
 import lombok.Data;
 
+import java.io.Serializable;
 import java.math.BigDecimal;
 import java.util.List;
 
@@ -11,7 +10,7 @@ import java.util.List;
  * 月度结算结果（申报→审核→拨付→清算 全量口径，即“应收 vs 实收”）
  */
 @Data
-public class MonthlyResultVO {
+public class MonthlyResultVO implements Serializable {
 
     private String month;
     private Integer status;
@@ -30,6 +29,6 @@ public class MonthlyResultVO {
     /** 实际已拨付 */
     private BigDecimal allocatedAmount;
 
-    private List<JinbMonthlyDeduct> deducts;
-    private List<MisAllocation> allocations;
+    private List<MonthlyDeductVO> deducts;
+    private List<AllocationVO> allocations;
 }

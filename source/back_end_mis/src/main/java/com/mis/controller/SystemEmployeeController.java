@@ -5,10 +5,9 @@ import com.mis.common.base.Result;
 import com.mis.dto.EmployeeQueryPageDTO;
 import com.mis.dto.EmployeeUpsertDTO;
 import com.mis.dto.QualificationBatchUpsertDTO;
-import com.mis.entity.MssEmployee;
-import com.mis.entity.MssEmployeeQualification;
 import com.mis.service.SystemEmployeeService;
 import com.mis.vo.EmployeeVO;
+import com.mis.vo.QualificationVO;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.DeleteMapping;
@@ -42,8 +41,8 @@ public class SystemEmployeeController {
     }
 
     @PostMapping("/employeeUpsert")
-    public Result<MssEmployee> employeeUpsert(@RequestBody @Valid EmployeeUpsertDTO dto) {
-        MssEmployee emp = employeeService.upsert(dto);
+    public Result<EmployeeVO> employeeUpsert(@RequestBody @Valid EmployeeUpsertDTO dto) {
+        EmployeeVO emp = employeeService.upsert(dto);
         return Result.success("保存成功", emp);
     }
 
@@ -56,7 +55,7 @@ public class SystemEmployeeController {
     // ---------- 资格证书 ----------
 
     @GetMapping("/qualification/listByEmployee")
-    public Result<List<MssEmployeeQualification>> qualificationList(@RequestParam(required = false) Long employeeId) {
+    public Result<List<QualificationVO>> qualificationList(@RequestParam(required = false) Long employeeId) {
         return Result.success(employeeService.qualificationList(employeeId));
     }
 

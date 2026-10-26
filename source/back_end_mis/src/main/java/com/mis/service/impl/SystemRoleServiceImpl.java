@@ -13,6 +13,7 @@ import com.mis.entity.MssRoleMenu;
 import com.mis.mapper.MssRoleMapper;
 import com.mis.mapper.MssRoleMenuMapper;
 import com.mis.service.SystemRoleService;
+import com.mis.vo.RoleListVO;
 import com.mis.vo.RoleVO;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.BeanUtils;
@@ -34,7 +35,7 @@ public class SystemRoleServiceImpl implements SystemRoleService {
     private final MssRoleMenuMapper roleMenuMapper;
 
     @Override
-    public PageResult<MssRole> page(String keyword, long pageNum, long pageSize) {
+    public PageResult<RoleListVO> page(String keyword, long pageNum, long pageSize) {
         Page<MssRole> page = roleMapper.selectPage(new Page<>(pageNum, pageSize),
                 new LambdaQueryWrapper<MssRole>()
                         .and(keyword != null && !keyword.isEmpty(), w -> w
@@ -43,14 +44,31 @@ public class SystemRoleServiceImpl implements SystemRoleService {
                                 .like(MssRole::getRoleCode, keyword))
                         .orderByAsc(MssRole::getSortOrder)
                         .orderByAsc(MssRole::getId));
-        return PageResult.of(page.getTotal(), page.getCurrent(), page.getSize(), page.getPages(), page.getRecords());
+        List<RoleListVO> vos = page.getRecords().stream().map(this::toListVO).collect(Collectors.toList());
+        return PageResult.of(page.getTotal(), page.getCurrent(), page.getSize(), page.getPages(), vos);
     }
 
     @Override
-    public List<MssRole> selectList() {
+    public List<RoleListVO> selectList() {
         return roleMapper.selectList(new LambdaQueryWrapper<MssRole>()
-                .eq(MssRole::getStatus, 1)
-                .orderByAsc(MssRole::getSortOrder));
+                        .eq(MssRole::getStatus, 1)
+                        .orderByAsc(MssRole::getSortOrder))
+                .stream().map(this::toListVO).collect(Collectors.toList());
+    }
+
+    private RoleListVO toListVO(MssRole role) {
+        RoleListVO vo = new RoleListVO();
+        BeanUtils.copyProperties(role, vo);
+        return vo;
+    }
+
+    @Override
+    public RoleVO getDetailById(Long roleId, Long id) {
+        Long rid = roleId != null ? roleId : id;
+        if (rid == null) {
+            throw new BusinessException("角色ID不能为空");
+        }
+        return getDetailById(rid);
     }
 
     @Override
@@ -59,15 +77,19 @@ public class SystemRoleServiceImpl implements SystemRoleService {
         if (role == null) {
             throw new BusinessException("角色不存在");
         }
+        return toDetailVO(role, menuIdsOfRole(id));
+    }
+
+    private RoleVO toDetailVO(MssRole role, List<Long> menuIds) {
         RoleVO vo = new RoleVO();
         BeanUtils.copyProperties(role, vo);
-        vo.setMenuIds(menuIdsOfRole(id));
+        vo.setMenuIds(menuIds);
         return vo;
     }
 
     @Override
     @Transactional(rollbackFor = Exception.class)
-    public MssRole upsert(RoleUpsertDTO dto) {
+    public RoleVO upsert(RoleUpsertDTO dto) {
         MssRole role = new MssRole();
         BeanUtils.copyProperties(dto, role);
         String operator = operatorName();
@@ -98,7 +120,7 @@ public class SystemRoleServiceImpl implements SystemRoleService {
             roleMenuMapper.delete(new LambdaQueryWrapper<MssRoleMenu>().eq(MssRoleMenu::getRoleId, role.getId()));
             insertRoleMenus(role.getId(), dto.getMenuIds());
         }
-        return role;
+        return toDetailVO(role, dto.getMenuIds());
     }
 
     @Override

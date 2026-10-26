@@ -3,7 +3,7 @@ package com.mis.service;
 import com.mis.common.base.PageResult;
 import com.mis.dto.RoleMenuSaveDTO;
 import com.mis.dto.RoleUpsertDTO;
-import com.mis.entity.MssRole;
+import com.mis.vo.RoleListVO;
 import com.mis.vo.RoleVO;
 
 import java.util.List;
@@ -13,13 +13,16 @@ import java.util.List;
  */
 public interface SystemRoleService {
 
-    PageResult<MssRole> page(String keyword, long pageNum, long pageSize);
+    PageResult<RoleListVO> page(String keyword, long pageNum, long pageSize);
 
-    List<MssRole> selectList();
+    List<RoleListVO> selectList();
 
     RoleVO getDetailById(Long id);
 
-    MssRole upsert(RoleUpsertDTO dto);
+    /** HIS 契约：/getById 兼容 roleId 与 id 双主键入参，二选一，都缺省抛错 */
+    RoleVO getDetailById(Long roleId, Long id);
+
+    RoleVO upsert(RoleUpsertDTO dto);
 
     void deleteById(Long id);
 

@@ -1,7 +1,7 @@
 package com.mis.service;
 
 import com.mis.dto.MenuUpsertDTO;
-import com.mis.entity.MssMenu;
+import com.mis.vo.MenuVO;
 
 import java.util.List;
 
@@ -10,11 +10,14 @@ import java.util.List;
  */
 public interface SystemMenuService {
 
-    List<MssMenu> tree();
+    List<MenuVO> tree();
 
-    MssMenu getById(Long id);
+    MenuVO getById(Long id);
 
-    MssMenu upsert(MenuUpsertDTO dto);
+    /** HIS 契约：/getById 兼容 menuId 与 id 双主键入参，二选一，都缺省抛错 */
+    MenuVO getById(Long menuId, Long id);
+
+    MenuVO upsert(MenuUpsertDTO dto);
 
     void deleteById(Long id);
 }

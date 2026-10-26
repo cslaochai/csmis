@@ -15,7 +15,11 @@ import com.mis.mapper.JinbMonthlyDeductMapper;
 import com.mis.mapper.JinbMonthlyMapper;
 import com.mis.mapper.JinbSettlementMapper;
 import com.mis.service.MonthlyService;
+import com.mis.vo.AllocationVO;
+import com.mis.vo.MonthlyDeductVO;
 import com.mis.vo.MonthlyResultVO;
+import com.mis.vo.MonthlyVO;
+import org.springframework.beans.BeanUtils;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -25,6 +29,7 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.YearMonth;
 import java.util.List;
+import java.util.stream.Collectors;
 
 @Service
 public class MonthlyServiceImpl implements MonthlyService {
@@ -217,16 +222,29 @@ public class MonthlyServiceImpl implements MonthlyService {
         vo.setReserveAmount(nz(m.getReserveAmount()));
         vo.setPayableAmount(nz(m.getPayableAmount()));
         vo.setAllocatedAmount(nz(m.getAllocatedAmount()));
-        vo.setDeducts(deducts);
-        vo.setAllocations(allocations);
+        vo.setDeducts(deducts.stream().map(d -> {
+            MonthlyDeductVO dv = new MonthlyDeductVO();
+            BeanUtils.copyProperties(d, dv);
+            return dv;
+        }).collect(Collectors.toList()));
+        vo.setAllocations(allocations.stream().map(a -> {
+            AllocationVO av = new AllocationVO();
+            BeanUtils.copyProperties(a, av);
+            return av;
+        }).collect(Collectors.toList()));
         return vo;
     }
 
     @Override
-    public PageResult<JinbMonthly> page(int pageNum, int pageSize) {
+    public PageResult<MonthlyVO> page(int pageNum, int pageSize) {
         Page<JinbMonthly> page = monthlyMapper.selectPage(new Page<>(pageNum, pageSize),
                 new LambdaQueryWrapper<JinbMonthly>().orderByDesc(JinbMonthly::getMonth));
-        return PageResult.of(page.getTotal(), pageNum, pageSize, page.getPages(), page.getRecords());
+        List<MonthlyVO> vos = page.getRecords().stream().map(m -> {
+            MonthlyVO vo = new MonthlyVO();
+            BeanUtils.copyProperties(m, vo);
+            return vo;
+        }).collect(Collectors.toList());
+        return PageResult.of(page.getTotal(), pageNum, pageSize, page.getPages(), vos);
     }
 
     // ===== internal =====

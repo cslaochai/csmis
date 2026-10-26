@@ -26,12 +26,12 @@ public class BillController {
     }
 
     @GetMapping("/getDetailById")
-    public Result<BillVO> detail(@RequestParam String id) {
-        return Result.success(settleService.billDetail(Long.valueOf(id)));
+    public Result<BillVO> detail(@RequestParam Long id) {
+        return Result.success(settleService.billDetail(id));
     }
 
     @PostMapping("/reverse")
     public Result<SettleResultVO> reverse(@RequestBody IdDTO dto) {
-        return Result.success(settleService.reverse(Long.valueOf(dto.getId())));
+        return Result.success(settleService.reverse(dto.getId()));
     }
 }

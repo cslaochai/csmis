@@ -4,9 +4,9 @@ import com.mis.common.base.PageVO;
 import com.mis.common.base.Result;
 import com.mis.dto.SuspicionHandleDTO;
 import com.mis.dto.SuspicionQueryDTO;
-import com.mis.entity.MssSuspicion;
 import com.mis.service.SuspicionService;
 import com.mis.vo.ActionVO;
+import com.mis.vo.SuspicionVO;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
@@ -22,7 +22,7 @@ public class SuperviseSuspicionController {
     private final SuspicionService suspicionService;
 
     @GetMapping("/listPage")
-    public Result<PageVO<MssSuspicion>> listPage(SuspicionQueryDTO query) {
+    public Result<PageVO<SuspicionVO>> listPage(SuspicionQueryDTO query) {
         return Result.success(suspicionService.suspicionPage(query));
     }
 
@@ -32,7 +32,7 @@ public class SuperviseSuspicionController {
     }
 
     @GetMapping("/getDetailById")
-    public Result<MssSuspicion> getDetail(@RequestParam Long id) {
+    public Result<SuspicionVO> getDetail(@RequestParam Long id) {
         return Result.success(suspicionService.getDetail(id));
     }
 

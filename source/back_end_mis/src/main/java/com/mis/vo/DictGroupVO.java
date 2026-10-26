@@ -1,6 +1,5 @@
 package com.mis.vo;
 
-import com.mis.entity.MssDictData;
 import lombok.Data;
 
 import java.io.Serializable;
@@ -14,12 +13,12 @@ public class DictGroupVO implements Serializable {
 
     private String dictType;
 
-    private List<MssDictData> dataList;
+    private List<DictDataVO> dataList;
 
     public DictGroupVO() {
     }
 
-    public DictGroupVO(String dictType, List<MssDictData> dataList) {
+    public DictGroupVO(String dictType, List<DictDataVO> dataList) {
         this.dictType = dictType;
         this.dataList = dataList;
     }

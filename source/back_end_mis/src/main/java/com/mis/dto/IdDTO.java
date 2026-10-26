@@ -5,10 +5,10 @@ import lombok.Data;
 import java.io.Serializable;
 
 /**
- * 通用主键入参（前端 id 序列化为字符串）
+ * 通用主键入参（主键一律 Long，前端字符串 id 由 Jackson 自动反序列化）
  */
 @Data
 public class IdDTO implements Serializable {
 
-    private String id;
+    private Long id;
 }

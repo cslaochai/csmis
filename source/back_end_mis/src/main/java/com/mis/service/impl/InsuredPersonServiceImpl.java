@@ -8,11 +8,14 @@ import com.mis.dto.PersonSaveDTO;
 import com.mis.entity.JinbInsuredPerson;
 import com.mis.mapper.JinbInsuredPersonMapper;
 import com.mis.service.InsuredPersonService;
+import com.mis.vo.InsuredPersonVO;
 import org.springframework.beans.BeanUtils;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 
 import java.math.BigDecimal;
+import java.util.List;
+import java.util.stream.Collectors;
 
 @Service
 public class InsuredPersonServiceImpl implements InsuredPersonService {
@@ -24,7 +27,7 @@ public class InsuredPersonServiceImpl implements InsuredPersonService {
     }
 
     @Override
-    public JinbInsuredPerson query(PersonQueryDTO dto) {
+    public InsuredPersonVO query(PersonQueryDTO dto) {
         LambdaQueryWrapper<JinbInsuredPerson> wrapper = new LambdaQueryWrapper<>();
         if (dto != null) {
             if (StringUtils.hasText(dto.getIdCard())) {
@@ -36,11 +39,12 @@ public class InsuredPersonServiceImpl implements InsuredPersonService {
             }
         }
         wrapper.last("limit 1");
-        return personMapper.selectOne(wrapper);
+        JinbInsuredPerson person = personMapper.selectOne(wrapper);
+        return person == null ? null : toVO(person);
     }
 
     @Override
-    public PageResult<JinbInsuredPerson> page(String keyword, int pageNum, int pageSize) {
+    public PageResult<InsuredPersonVO> page(String keyword, int pageNum, int pageSize) {
         LambdaQueryWrapper<JinbInsuredPerson> wrapper = new LambdaQueryWrapper<>();
         if (StringUtils.hasText(keyword)) {
             wrapper.and(w -> w.like(JinbInsuredPerson::getName, keyword)
@@ -49,18 +53,19 @@ public class InsuredPersonServiceImpl implements InsuredPersonService {
         }
         wrapper.orderByDesc(JinbInsuredPerson::getId);
         Page<JinbInsuredPerson> page = personMapper.selectPage(new Page<>(pageNum, pageSize), wrapper);
-        return PageResult.of(page.getTotal(), pageNum, pageSize, page.getPages(), page.getRecords());
+        List<InsuredPersonVO> vos = page.getRecords().stream().map(this::toVO).collect(Collectors.toList());
+        return PageResult.of(page.getTotal(), pageNum, pageSize, page.getPages(), vos);
     }
 
     @Override
-    public JinbInsuredPerson save(PersonSaveDTO dto) {
+    public InsuredPersonVO save(PersonSaveDTO dto) {
         JinbInsuredPerson exist = personMapper.selectOne(new LambdaQueryWrapper<JinbInsuredPerson>()
                 .eq(JinbInsuredPerson::getIdCard, dto.getIdCard())
                 .last("limit 1"));
         if (exist != null) {
             BeanUtils.copyProperties(dto, exist);
             personMapper.updateById(exist);
-            return exist;
+            return toVO(exist);
         }
         JinbInsuredPerson person = new JinbInsuredPerson();
         BeanUtils.copyProperties(dto, person);
@@ -71,6 +76,12 @@ public class InsuredPersonServiceImpl implements InsuredPersonService {
             person.setAccountBalance(BigDecimal.ZERO);
         }
         personMapper.insert(person);
-        return person;
+        return toVO(person);
+    }
+
+    private InsuredPersonVO toVO(JinbInsuredPerson person) {
+        InsuredPersonVO vo = new InsuredPersonVO();
+        BeanUtils.copyProperties(person, vo);
+        return vo;
     }
 }

@@ -2,8 +2,8 @@ package com.mis.controller;
 
 import com.mis.common.base.Result;
 import com.mis.dto.DepartmentUpsertDTO;
-import com.mis.entity.MssDepartment;
 import com.mis.service.SystemDeptService;
+import com.mis.vo.DepartmentVO;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.DeleteMapping;
@@ -27,28 +27,29 @@ public class SystemDeptController {
     private final SystemDeptService deptService;
 
     @GetMapping("/system/dept/selectList")
-    public Result<List<MssDepartment>> selectList() {
+    public Result<List<DepartmentVO>> selectList() {
         return Result.success(deptService.selectList());
     }
 
     @GetMapping("/system/department/tree")
-    public Result<List<MssDepartment>> departmentTree() {
+    public Result<List<DepartmentVO>> departmentTree() {
         return Result.success(deptService.tree());
     }
 
     @GetMapping("/system/department/selectList")
-    public Result<List<MssDepartment>> departmentSelectList() {
+    public Result<List<DepartmentVO>> departmentSelectList() {
         return Result.success(deptService.selectList());
     }
 
     @GetMapping("/system/department/getById")
-    public Result<MssDepartment> departmentGetById(@RequestParam(required = false) Long deptId) {
-        return Result.success(deptService.getById(deptId));
+    public Result<DepartmentVO> departmentGetById(@RequestParam(required = false) Long deptId,
+                                                  @RequestParam(required = false) Long id) {
+        return Result.success(deptService.getById(deptId, id));
     }
 
     @PostMapping("/system/department/departmentUpsert")
-    public Result<MssDepartment> departmentUpsert(@RequestBody @Valid DepartmentUpsertDTO dto) {
-        MssDepartment dept = deptService.upsert(dto);
+    public Result<DepartmentVO> departmentUpsert(@RequestBody @Valid DepartmentUpsertDTO dto) {
+        DepartmentVO dept = deptService.upsert(dto);
         return Result.success("保存成功", dept);
     }
 

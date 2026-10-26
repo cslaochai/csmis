@@ -8,10 +8,14 @@ import com.mis.entity.MssRecon;
 import com.mis.mapper.MssReconMapper;
 import com.mis.service.ReconService;
 import com.mis.vo.ActionVO;
+import com.mis.vo.ReconVO;
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.BeanUtils;
 import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
+import java.util.List;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -20,12 +24,17 @@ public class ReconServiceImpl implements ReconService {
     private final MssReconMapper reconMapper;
 
     @Override
-    public PageVO<MssRecon> reconPage(BizPageParam q) {
+    public PageVO<ReconVO> reconPage(BizPageParam q) {
         Page<MssRecon> page = new Page<>(q.getPage(), q.getSize());
         LambdaQueryWrapper<MssRecon> w = new LambdaQueryWrapper<>();
         w.orderByAsc(MssRecon::getPeriod);
         Page<MssRecon> res = reconMapper.selectPage(page, w);
-        return PageVO.of(res.getRecords(), res.getTotal());
+        List<ReconVO> vos = res.getRecords().stream().map(r -> {
+            ReconVO vo = new ReconVO();
+            BeanUtils.copyProperties(r, vo);
+            return vo;
+        }).collect(Collectors.toList());
+        return PageVO.of(vos, res.getTotal());
     }
 
     @Override

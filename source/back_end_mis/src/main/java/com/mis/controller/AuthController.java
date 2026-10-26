@@ -3,9 +3,9 @@ package com.mis.controller;
 import com.mis.common.base.Result;
 import com.mis.dto.ChangePasswordDTO;
 import com.mis.dto.LoginRequestDTO;
-import com.mis.entity.MssMenu;
 import com.mis.service.AuthService;
 import com.mis.vo.LoginVO;
+import com.mis.vo.MenuVO;
 import com.mis.vo.UserInfoVO;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -41,7 +41,7 @@ public class AuthController {
 
     @Operation(summary = "当前用户可见菜单树（按当前角色）")
     @GetMapping("/menus")
-    public Result<List<MssMenu>> menus() {
+    public Result<List<MenuVO>> menus() {
         return Result.success(authService.menus());
     }
 

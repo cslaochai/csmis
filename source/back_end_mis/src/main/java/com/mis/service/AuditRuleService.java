@@ -4,8 +4,8 @@ import com.mis.common.base.PageVO;
 import com.mis.dto.RuleQueryDTO;
 import com.mis.dto.RuleStatusDTO;
 import com.mis.dto.RuleUpsertDTO;
-import com.mis.entity.MssAuditRule;
 import com.mis.vo.ActionVO;
+import com.mis.vo.AuditRuleVO;
 
 import java.util.List;
 
@@ -14,11 +14,11 @@ import java.util.List;
  */
 public interface AuditRuleService {
 
-    PageVO<MssAuditRule> rulePage(RuleQueryDTO query);
+    PageVO<AuditRuleVO> rulePage(RuleQueryDTO query);
 
     ActionVO upsert(RuleUpsertDTO dto);
 
     ActionVO changeStatus(RuleStatusDTO dto);
 
-    List<MssAuditRule> enabledRules();
+    List<AuditRuleVO> enabledRules();
 }

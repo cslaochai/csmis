@@ -2,8 +2,8 @@ package com.mis.service;
 
 import com.mis.dto.ChangePasswordDTO;
 import com.mis.dto.LoginRequestDTO;
-import com.mis.entity.MssMenu;
 import com.mis.vo.LoginVO;
+import com.mis.vo.MenuVO;
 import com.mis.vo.UserInfoVO;
 import jakarta.servlet.http.HttpServletRequest;
 
@@ -18,7 +18,8 @@ public interface AuthService {
 
     UserInfoVO info();
 
-    List<MssMenu> menus();
+    /** 当前用户可见菜单树（按当前角色，前端布局与路由构建） */
+    List<MenuVO> menus();
 
     void logout();
 

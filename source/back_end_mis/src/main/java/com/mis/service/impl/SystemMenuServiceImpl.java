@@ -10,6 +10,7 @@ import com.mis.entity.MssRoleMenu;
 import com.mis.mapper.MssMenuMapper;
 import com.mis.mapper.MssRoleMenuMapper;
 import com.mis.service.SystemMenuService;
+import com.mis.vo.MenuVO;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.BeanUtils;
 import org.springframework.stereotype.Service;
@@ -32,24 +33,34 @@ public class SystemMenuServiceImpl implements SystemMenuService {
     private final MssRoleMenuMapper roleMenuMapper;
 
     @Override
-    public List<MssMenu> tree() {
+    public List<MenuVO> tree() {
         List<MssMenu> menus = menuMapper.selectList(new LambdaQueryWrapper<MssMenu>()
                 .orderByAsc(MssMenu::getSortOrder)
                 .orderByAsc(MssMenu::getId));
-        return buildTree(menus);
+        List<MenuVO> vos = menus.stream().map(this::toVO).collect(Collectors.toList());
+        return buildTree(vos);
     }
 
     @Override
-    public MssMenu getById(Long id) {
+    public MenuVO getById(Long menuId, Long id) {
+        Long rid = menuId != null ? menuId : id;
+        if (rid == null) {
+            throw new BusinessException("菜单ID不能为空");
+        }
+        return getById(rid);
+    }
+
+    @Override
+    public MenuVO getById(Long id) {
         MssMenu menu = menuMapper.selectById(id);
         if (menu == null) {
             throw new BusinessException("菜单不存在");
         }
-        return menu;
+        return toVO(menu);
     }
 
     @Override
-    public MssMenu upsert(MenuUpsertDTO dto) {
+    public MenuVO upsert(MenuUpsertDTO dto) {
         MssMenu menu = new MssMenu();
         BeanUtils.copyProperties(dto, menu);
         String operator = operatorName();
@@ -71,7 +82,7 @@ public class SystemMenuServiceImpl implements SystemMenuService {
             menu.setUpdateBy(operator);
             menuMapper.updateById(menu);
         }
-        return menu;
+        return toVO(menu);
     }
 
     @Override
@@ -98,26 +109,32 @@ public class SystemMenuServiceImpl implements SystemMenuService {
         }
     }
 
-    private List<MssMenu> buildTree(List<MssMenu> menus) {
-        List<MssMenu> tree = new ArrayList<>();
-        for (MssMenu m : menus) {
+    private MenuVO toVO(MssMenu menu) {
+        MenuVO vo = new MenuVO();
+        BeanUtils.copyProperties(menu, vo);
+        return vo;
+    }
+
+    private List<MenuVO> buildTree(List<MenuVO> menus) {
+        List<MenuVO> tree = new ArrayList<>();
+        for (MenuVO m : menus) {
             if (m.getParentId() == null || m.getParentId() == 0) {
                 tree.add(m);
             }
         }
-        for (MssMenu root : tree) {
+        for (MenuVO root : tree) {
             fillChildren(root, menus);
         }
         return tree;
     }
 
-    private void fillChildren(MssMenu parent, List<MssMenu> menus) {
-        List<MssMenu> children = menus.stream()
+    private void fillChildren(MenuVO parent, List<MenuVO> menus) {
+        List<MenuVO> children = menus.stream()
                 .filter(m -> Objects.equals(m.getParentId(), parent.getId()))
                 .sorted(Comparator.comparing(m -> m.getSortOrder() == null ? 0 : m.getSortOrder()))
                 .collect(Collectors.toList());
         parent.setChildren(children);
-        for (MssMenu child : children) {
+        for (MenuVO child : children) {
             fillChildren(child, menus);
         }
     }

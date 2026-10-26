@@ -22,6 +22,7 @@ import com.mis.service.SystemEmployeeService;
 import com.mis.service.SystemPostService;
 import com.mis.vo.EmployeeVO;
 import com.mis.vo.PostVO;
+import com.mis.vo.QualificationVO;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.BeanUtils;
 import org.springframework.stereotype.Service;
@@ -73,7 +74,7 @@ public class SystemEmployeeServiceImpl implements SystemEmployeeService {
 
     @Override
     @Transactional(rollbackFor = Exception.class)
-    public MssEmployee upsert(EmployeeUpsertDTO dto) {
+    public EmployeeVO upsert(EmployeeUpsertDTO dto) {
         String operator = operatorName();
         MssEmployee emp = new MssEmployee();
         BeanUtils.copyProperties(dto, emp);
@@ -108,7 +109,7 @@ public class SystemEmployeeServiceImpl implements SystemEmployeeService {
         if (dto.getPosts() != null) {
             postService.replacePostsOfEmployee(emp.getId(), dto.getPosts(), operator);
         }
-        return emp;
+        return toVO(employeeMapper.selectById(emp.getId()));
     }
 
     @Override
@@ -121,10 +122,15 @@ public class SystemEmployeeServiceImpl implements SystemEmployeeService {
     }
 
     @Override
-    public List<MssEmployeeQualification> qualificationList(Long employeeId) {
+    public List<QualificationVO> qualificationList(Long employeeId) {
         return qualificationMapper.selectList(new LambdaQueryWrapper<MssEmployeeQualification>()
-                .eq(MssEmployeeQualification::getEmployeeId, employeeId)
-                .orderByAsc(MssEmployeeQualification::getId));
+                        .eq(MssEmployeeQualification::getEmployeeId, employeeId)
+                        .orderByAsc(MssEmployeeQualification::getId))
+                .stream().map(q -> {
+                    QualificationVO vo = new QualificationVO();
+                    BeanUtils.copyProperties(q, vo);
+                    return vo;
+                }).collect(Collectors.toList());
     }
 
     @Override

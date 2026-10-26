@@ -5,9 +5,9 @@ import com.mis.common.base.Result;
 import com.mis.dto.FilingQueryDTO;
 import com.mis.dto.FilingUpsertDTO;
 import com.mis.dto.IdDTO;
-import com.mis.entity.MssFiling;
 import com.mis.service.FilingService;
 import com.mis.vo.ActionVO;
+import com.mis.vo.FilingVO;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
 
@@ -22,7 +22,7 @@ public class FilingController {
     private final FilingService filingService;
 
     @GetMapping("/listPage")
-    public Result<PageVO<MssFiling>> listPage(FilingQueryDTO query) {
+    public Result<PageVO<FilingVO>> listPage(FilingQueryDTO query) {
         return Result.success(filingService.filingPage(query));
     }
 
@@ -33,6 +33,6 @@ public class FilingController {
 
     @PostMapping("/revoke")
     public Result<ActionVO> revoke(@RequestBody IdDTO dto) {
-        return Result.success(filingService.revoke(Long.valueOf(dto.getId())));
+        return Result.success(filingService.revoke(dto.getId()));
     }
 }

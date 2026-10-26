@@ -71,6 +71,15 @@ public class SystemUserServiceImpl implements SystemUserService {
     }
 
     @Override
+    public UserVO detail(Long userId, Long id) {
+        Long rid = userId != null ? userId : id;
+        if (rid == null) {
+            throw new BusinessException("用户ID不能为空");
+        }
+        return detail(rid);
+    }
+
+    @Override
     public UserVO detail(Long id) {
         MssUser user = userMapper.selectById(id);
         if (user == null) {
@@ -94,7 +103,7 @@ public class SystemUserServiceImpl implements SystemUserService {
 
     @Override
     @Transactional(rollbackFor = Exception.class)
-    public MssUser upsert(UserUpsertDTO dto) {
+    public UserVO upsert(UserUpsertDTO dto) {
         MssUser user = new MssUser();
         BeanUtils.copyProperties(dto, user);
         String operator = operatorName();
@@ -138,7 +147,7 @@ public class SystemUserServiceImpl implements SystemUserService {
         if (dto.getPosts() != null && user.getEmpId() != null) {
             postService.replacePostsOfEmployee(user.getEmpId(), dto.getPosts(), operator);
         }
-        return user;
+        return toVO(userMapper.selectById(user.getId()));
     }
 
     @Override

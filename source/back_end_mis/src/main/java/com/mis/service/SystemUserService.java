@@ -5,7 +5,6 @@ import com.mis.dto.ResetPasswordDTO;
 import com.mis.dto.UserQueryPageDTO;
 import com.mis.dto.UserStatusDTO;
 import com.mis.dto.UserUpsertDTO;
-import com.mis.entity.MssUser;
 import com.mis.vo.UserVO;
 
 /**
@@ -18,7 +17,10 @@ public interface SystemUserService {
     /** 详情（含员工字段与岗位行，HIS：getById） */
     UserVO detail(Long id);
 
-    MssUser upsert(UserUpsertDTO dto);
+    /** HIS 契约：/getById 兼容 userId 与 id 双主键入参，二选一，都缺省抛错 */
+    UserVO detail(Long userId, Long id);
+
+    UserVO upsert(UserUpsertDTO dto);
 
     void resetPassword(ResetPasswordDTO dto);
 

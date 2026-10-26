@@ -6,8 +6,8 @@ import com.mis.dto.IdDTO;
 import com.mis.dto.RoleListPageDTO;
 import com.mis.dto.RoleMenuSaveDTO;
 import com.mis.dto.RoleUpsertDTO;
-import com.mis.entity.MssRole;
 import com.mis.service.SystemRoleService;
+import com.mis.vo.RoleListVO;
 import com.mis.vo.RoleVO;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -26,24 +26,24 @@ public class SystemRoleController {
     private final SystemRoleService roleService;
 
     @GetMapping("/listPage")
-    public Result<PageResult<MssRole>> listPage(@RequestParam(required = false) String keyword,
-                                                @RequestParam(defaultValue = "1") long pageNum,
-                                                @RequestParam(defaultValue = "10") long pageSize) {
+    public Result<PageResult<RoleListVO>> listPage(@RequestParam(required = false) String keyword,
+                                                   @RequestParam(defaultValue = "1") long pageNum,
+                                                   @RequestParam(defaultValue = "10") long pageSize) {
         return Result.success(roleService.page(keyword, pageNum, pageSize));
     }
 
     @PostMapping("/listPage")
-    public Result<PageResult<MssRole>> listPagePost(@RequestBody RoleListPageDTO dto) {
+    public Result<PageResult<RoleListVO>> listPagePost(@RequestBody RoleListPageDTO dto) {
         return Result.success(roleService.page(dto.getRoleName(), dto.getPage(), dto.getSize()));
     }
 
     @GetMapping("/selectList")
-    public Result<List<MssRole>> selectList() {
+    public Result<List<RoleListVO>> selectList() {
         return Result.success(roleService.selectList());
     }
 
     @PostMapping("/selectList")
-    public Result<List<MssRole>> selectListPost() {
+    public Result<List<RoleListVO>> selectListPost() {
         return Result.success(roleService.selectList());
     }
 
@@ -55,7 +55,7 @@ public class SystemRoleController {
     @GetMapping("/getById")
     public Result<RoleVO> getById(@RequestParam(required = false) Long roleId,
                                   @RequestParam(required = false) Long id) {
-        return Result.success(roleService.getDetailById(roleId != null ? roleId : id));
+        return Result.success(roleService.getDetailById(roleId, id));
     }
 
     @GetMapping("/getMenuIds")
@@ -64,12 +64,12 @@ public class SystemRoleController {
     }
 
     @PostMapping("/upsert")
-    public Result<MssRole> upsert(@Valid @RequestBody RoleUpsertDTO dto) {
+    public Result<RoleVO> upsert(@Valid @RequestBody RoleUpsertDTO dto) {
         return Result.success(dto.getId() == null ? "新增成功" : "修改成功", roleService.upsert(dto));
     }
 
     @PostMapping("/roleUpsert")
-    public Result<MssRole> roleUpsert(@Valid @RequestBody RoleUpsertDTO dto) {
+    public Result<RoleVO> roleUpsert(@Valid @RequestBody RoleUpsertDTO dto) {
         return Result.success(dto.getId() == null ? "新增成功" : "修改成功", roleService.upsert(dto));
     }
 
@@ -81,7 +81,7 @@ public class SystemRoleController {
 
     @PostMapping("/deleteById")
     public Result<Void> deleteById(@RequestBody IdDTO dto) {
-        roleService.deleteById(Long.valueOf(dto.getId()));
+        roleService.deleteById(dto.getId());
         return Result.success("删除成功", null);
     }
 

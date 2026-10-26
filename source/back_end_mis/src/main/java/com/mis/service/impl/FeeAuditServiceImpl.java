@@ -8,8 +8,13 @@ import com.mis.entity.MssFeeAudit;
 import com.mis.mapper.MssFeeAuditMapper;
 import com.mis.service.FeeAuditService;
 import com.mis.vo.ActionVO;
+import com.mis.vo.FeeAuditVO;
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.BeanUtils;
 import org.springframework.stereotype.Service;
+
+import java.util.List;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -18,7 +23,7 @@ public class FeeAuditServiceImpl implements FeeAuditService {
     private final MssFeeAuditMapper auditMapper;
 
     @Override
-    public PageVO<MssFeeAudit> auditPage(AuditQueryDTO q) {
+    public PageVO<FeeAuditVO> auditPage(AuditQueryDTO q) {
         Page<MssFeeAudit> page = new Page<>(q.getPage(), q.getSize());
         LambdaQueryWrapper<MssFeeAudit> w = new LambdaQueryWrapper<>();
         if (hasText(q.getKeyword())) {
@@ -35,7 +40,12 @@ public class FeeAuditServiceImpl implements FeeAuditService {
         }
         w.orderByDesc(MssFeeAudit::getId);
         Page<MssFeeAudit> res = auditMapper.selectPage(page, w);
-        return PageVO.of(res.getRecords(), res.getTotal());
+        List<FeeAuditVO> vos = res.getRecords().stream().map(a -> {
+            FeeAuditVO vo = new FeeAuditVO();
+            BeanUtils.copyProperties(a, vo);
+            return vo;
+        }).collect(Collectors.toList());
+        return PageVO.of(vos, res.getTotal());
     }
 
     @Override

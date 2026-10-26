@@ -9,10 +9,14 @@ import com.mis.entity.MssFiling;
 import com.mis.mapper.MssFilingMapper;
 import com.mis.service.FilingService;
 import com.mis.vo.ActionVO;
+import com.mis.vo.FilingVO;
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.BeanUtils;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDate;
+import java.util.List;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -21,7 +25,7 @@ public class FilingServiceImpl implements FilingService {
     private final MssFilingMapper filingMapper;
 
     @Override
-    public PageVO<MssFiling> filingPage(FilingQueryDTO q) {
+    public PageVO<FilingVO> filingPage(FilingQueryDTO q) {
         Page<MssFiling> page = new Page<>(q.getPage(), q.getSize());
         LambdaQueryWrapper<MssFiling> w = new LambdaQueryWrapper<>();
         if (hasText(q.getKeyword())) {
@@ -36,7 +40,12 @@ public class FilingServiceImpl implements FilingService {
         }
         w.orderByDesc(MssFiling::getId);
         Page<MssFiling> res = filingMapper.selectPage(page, w);
-        return PageVO.of(res.getRecords(), res.getTotal());
+        List<FilingVO> vos = res.getRecords().stream().map(f -> {
+            FilingVO vo = new FilingVO();
+            BeanUtils.copyProperties(f, vo);
+            return vo;
+        }).collect(Collectors.toList());
+        return PageVO.of(vos, res.getTotal());
     }
 
     @Override

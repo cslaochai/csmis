@@ -15,7 +15,9 @@ import com.mis.mapper.MssSuspicionMapper;
 import com.mis.service.AuditRuleService;
 import com.mis.service.SuspicionService;
 import com.mis.vo.ActionVO;
+import com.mis.vo.SuspicionVO;
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.BeanUtils;
 import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
@@ -24,6 +26,7 @@ import java.time.LocalDateTime;
 import java.time.YearMonth;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -38,7 +41,7 @@ public class SuspicionServiceImpl implements SuspicionService {
     private final MisProperties properties;
 
     @Override
-    public PageVO<MssSuspicion> suspicionPage(SuspicionQueryDTO q) {
+    public PageVO<SuspicionVO> suspicionPage(SuspicionQueryDTO q) {
         Page<MssSuspicion> page = new Page<>(q.getPage(), q.getSize());
         LambdaQueryWrapper<MssSuspicion> w = new LambdaQueryWrapper<>();
         if (hasText(q.getKeyword())) {
@@ -58,7 +61,8 @@ public class SuspicionServiceImpl implements SuspicionService {
         }
         w.orderByDesc(MssSuspicion::getId);
         Page<MssSuspicion> res = suspicionMapper.selectPage(page, w);
-        return PageVO.of(res.getRecords(), res.getTotal());
+        List<SuspicionVO> vos = res.getRecords().stream().map(this::toVO).collect(Collectors.toList());
+        return PageVO.of(vos, res.getTotal());
     }
 
     @Override
@@ -99,8 +103,15 @@ public class SuspicionServiceImpl implements SuspicionService {
     }
 
     @Override
-    public MssSuspicion getDetail(Long id) {
-        return suspicionMapper.selectById(id);
+    public SuspicionVO getDetail(Long id) {
+        MssSuspicion s = suspicionMapper.selectById(id);
+        return s == null ? null : toVO(s);
+    }
+
+    private SuspicionVO toVO(MssSuspicion s) {
+        SuspicionVO vo = new SuspicionVO();
+        BeanUtils.copyProperties(s, vo);
+        return vo;
     }
 
     @Override

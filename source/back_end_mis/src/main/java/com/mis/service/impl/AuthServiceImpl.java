@@ -11,9 +11,11 @@ import com.mis.entity.*;
 import com.mis.mapper.*;
 import com.mis.service.AuthService;
 import com.mis.vo.LoginVO;
+import com.mis.vo.MenuVO;
 import com.mis.vo.UserInfoVO;
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.BeanUtils;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
@@ -133,7 +135,7 @@ public class AuthServiceImpl implements AuthService {
     }
 
     @Override
-    public List<MssMenu> menus() {
+    public List<MenuVO> menus() {
         LoginUser loginUser = requireLogin();
         List<Long> menuIds = roleMenuMapper.selectList(new LambdaQueryWrapper<MssRoleMenu>()
                         .eq(MssRoleMenu::getRoleId, roleIdOfCode(loginUser.getRoleCode())))
@@ -141,11 +143,12 @@ public class AuthServiceImpl implements AuthService {
         if (menuIds.isEmpty()) {
             return new ArrayList<>();
         }
-        List<MssMenu> menus = menuMapper.selectBatchIds(menuIds).stream()
+        List<MenuVO> menus = menuMapper.selectBatchIds(menuIds).stream()
                 .filter(m -> m.getMenuType() != null && m.getMenuType() <= 2)
                 .filter(m -> m.getStatus() == null || m.getStatus() == 1)
                 .filter(m -> m.getIsVisible() == null || m.getIsVisible() == 1)
                 .sorted(Comparator.comparing(m -> m.getSortOrder() == null ? 0 : m.getSortOrder()))
+                .map(this::toMenuVO)
                 .collect(Collectors.toList());
         return buildTree(menus);
     }
@@ -236,26 +239,32 @@ public class AuthServiceImpl implements AuthService {
                 .collect(Collectors.toList());
     }
 
-    private List<MssMenu> buildTree(List<MssMenu> menus) {
-        List<MssMenu> tree = new ArrayList<>();
-        for (MssMenu m : menus) {
+    private MenuVO toMenuVO(MssMenu m) {
+        MenuVO vo = new MenuVO();
+        BeanUtils.copyProperties(m, vo);
+        return vo;
+    }
+
+    private List<MenuVO> buildTree(List<MenuVO> menus) {
+        List<MenuVO> tree = new ArrayList<>();
+        for (MenuVO m : menus) {
             if (m.getParentId() == null || m.getParentId() == 0) {
                 tree.add(m);
             }
         }
-        for (MssMenu root : tree) {
+        for (MenuVO root : tree) {
             fillChildren(root, menus);
         }
         return tree;
     }
 
-    private void fillChildren(MssMenu parent, List<MssMenu> menus) {
-        List<MssMenu> children = menus.stream()
+    private void fillChildren(MenuVO parent, List<MenuVO> menus) {
+        List<MenuVO> children = menus.stream()
                 .filter(m -> Objects.equals(m.getParentId(), parent.getId()))
                 .sorted(Comparator.comparing(m -> m.getSortOrder() == null ? 0 : m.getSortOrder()))
                 .collect(Collectors.toList());
         parent.setChildren(children);
-        for (MssMenu child : children) {
+        for (MenuVO child : children) {
             fillChildren(child, menus);
         }
     }

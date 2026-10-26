@@ -3,8 +3,8 @@ package com.mis.controller;
 import com.mis.common.base.Result;
 import com.mis.dto.IdDTO;
 import com.mis.dto.MenuUpsertDTO;
-import com.mis.entity.MssMenu;
 import com.mis.service.SystemMenuService;
+import com.mis.vo.MenuVO;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
@@ -22,29 +22,29 @@ public class SystemMenuController {
     private final SystemMenuService menuService;
 
     @GetMapping("/tree")
-    public Result<List<MssMenu>> tree() {
+    public Result<List<MenuVO>> tree() {
         return Result.success(menuService.tree());
     }
 
     @GetMapping("/getById")
-    public Result<MssMenu> getById(@RequestParam(required = false) Long menuId,
-                                   @RequestParam(required = false) Long id) {
-        return Result.success(menuService.getById(menuId != null ? menuId : id));
+    public Result<MenuVO> getById(@RequestParam(required = false) Long menuId,
+                                  @RequestParam(required = false) Long id) {
+        return Result.success(menuService.getById(menuId, id));
     }
 
     @PostMapping("/upsert")
-    public Result<MssMenu> upsert(@Valid @RequestBody MenuUpsertDTO dto) {
+    public Result<MenuVO> upsert(@Valid @RequestBody MenuUpsertDTO dto) {
         return Result.success(dto.getId() == null ? "新增成功" : "修改成功", menuService.upsert(dto));
     }
 
     @PostMapping("/menuUpsert")
-    public Result<MssMenu> menuUpsert(@Valid @RequestBody MenuUpsertDTO dto) {
+    public Result<MenuVO> menuUpsert(@Valid @RequestBody MenuUpsertDTO dto) {
         return Result.success(dto.getId() == null ? "新增成功" : "修改成功", menuService.upsert(dto));
     }
 
     @PostMapping("/deleteById")
     public Result<Void> deleteById(@RequestBody IdDTO dto) {
-        menuService.deleteById(Long.valueOf(dto.getId()));
+        menuService.deleteById(dto.getId());
         return Result.success("删除成功", null);
     }
 

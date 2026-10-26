@@ -15,6 +15,7 @@ import com.mis.mapper.MssPendingSettleMapper;
 import com.mis.service.SettleService;
 import com.mis.vo.BillVO;
 import com.mis.vo.DecVO;
+import com.mis.vo.FeeItemVO;
 import com.mis.vo.PendingSettleVO;
 import com.mis.vo.SettleResultVO;
 import lombok.RequiredArgsConstructor;
@@ -25,6 +26,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -191,7 +193,7 @@ public class SettleServiceImpl implements SettleService {
     private PendingSettleVO toPendingVO(MssPendingSettle p) {
         PendingSettleVO vo = new PendingSettleVO();
         BeanUtils.copyProperties(p, vo);
-        vo.setItems(itemsOf(1, p.getId()));
+        vo.setItems(itemsOf(1, p.getId()).stream().map(this::toFeeItemVO).collect(Collectors.toList()));
         return vo;
     }
 
@@ -199,8 +201,14 @@ public class SettleServiceImpl implements SettleService {
         BillVO vo = new BillVO();
         BeanUtils.copyProperties(b, vo);
         if (withItems) {
-            vo.setItems(itemsOf(2, b.getId()));
+            vo.setItems(itemsOf(2, b.getId()).stream().map(this::toFeeItemVO).collect(Collectors.toList()));
         }
+        return vo;
+    }
+
+    private FeeItemVO toFeeItemVO(MssFeeItem it) {
+        FeeItemVO vo = new FeeItemVO();
+        BeanUtils.copyProperties(it, vo);
         return vo;
     }
 

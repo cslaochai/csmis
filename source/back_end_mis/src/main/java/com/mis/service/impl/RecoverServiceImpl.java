@@ -10,10 +10,14 @@ import com.mis.entity.MssRecover;
 import com.mis.mapper.MssRecoverMapper;
 import com.mis.service.RecoverService;
 import com.mis.vo.ActionVO;
+import com.mis.vo.RecoverVO;
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.BeanUtils;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
+import java.util.List;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -22,7 +26,7 @@ public class RecoverServiceImpl implements RecoverService {
     private final MssRecoverMapper recoverMapper;
 
     @Override
-    public PageVO<MssRecover> recoverPage(RecoverQueryDTO q) {
+    public PageVO<RecoverVO> recoverPage(RecoverQueryDTO q) {
         Page<MssRecover> page = new Page<>(q.getPage(), q.getSize());
         LambdaQueryWrapper<MssRecover> w = new LambdaQueryWrapper<>();
         if (hasText(q.getKeyword())) {
@@ -39,12 +43,20 @@ public class RecoverServiceImpl implements RecoverService {
         }
         w.orderByDesc(MssRecover::getId);
         Page<MssRecover> res = recoverMapper.selectPage(page, w);
-        return PageVO.of(res.getRecords(), res.getTotal());
+        List<RecoverVO> vos = res.getRecords().stream().map(this::toVO).collect(Collectors.toList());
+        return PageVO.of(vos, res.getTotal());
     }
 
     @Override
-    public MssRecover getDetail(Long id) {
-        return recoverMapper.selectById(id);
+    public RecoverVO getDetail(Long id) {
+        MssRecover r = recoverMapper.selectById(id);
+        return r == null ? null : toVO(r);
+    }
+
+    private RecoverVO toVO(MssRecover r) {
+        RecoverVO vo = new RecoverVO();
+        BeanUtils.copyProperties(r, vo);
+        return vo;
     }
 
     @Override

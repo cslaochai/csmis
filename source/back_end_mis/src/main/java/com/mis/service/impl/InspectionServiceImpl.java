@@ -17,13 +17,17 @@ import com.mis.mapper.MssRecoverMapper;
 import com.mis.service.InspectionService;
 import com.mis.vo.ActionVO;
 import com.mis.vo.InspectionDetailVO;
+import com.mis.vo.InspectionItemVO;
+import com.mis.vo.InspectionVO;
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.BeanUtils;
 import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -37,7 +41,7 @@ public class InspectionServiceImpl implements InspectionService {
     private final MisProperties properties;
 
     @Override
-    public PageVO<MssInspection> inspectionPage(InspectionQueryDTO q) {
+    public PageVO<InspectionVO> inspectionPage(InspectionQueryDTO q) {
         Page<MssInspection> page = new Page<>(q.getPage(), q.getSize());
         LambdaQueryWrapper<MssInspection> w = new LambdaQueryWrapper<>();
         if (hasText(q.getKeyword())) {
@@ -54,7 +58,12 @@ public class InspectionServiceImpl implements InspectionService {
         }
         w.orderByDesc(MssInspection::getId);
         Page<MssInspection> res = inspectionMapper.selectPage(page, w);
-        return PageVO.of(res.getRecords(), res.getTotal());
+        List<InspectionVO> vos = res.getRecords().stream().map(t -> {
+            InspectionVO vo = new InspectionVO();
+            BeanUtils.copyProperties(t, vo);
+            return vo;
+        }).collect(Collectors.toList());
+        return PageVO.of(vos, res.getTotal());
     }
 
     @Override
@@ -132,9 +141,19 @@ public class InspectionServiceImpl implements InspectionService {
             }
         }
         InspectionDetailVO vo = new InspectionDetailVO();
-        vo.setTask(t);
-        vo.setItems(items);
+        vo.setTask(toInspectionVO(t));
+        vo.setItems(items.stream().map(it -> {
+            InspectionItemVO iv = new InspectionItemVO();
+            BeanUtils.copyProperties(it, iv);
+            return iv;
+        }).collect(Collectors.toList()));
         vo.setTotalAmount(total);
+        return vo;
+    }
+
+    private InspectionVO toInspectionVO(MssInspection t) {
+        InspectionVO vo = new InspectionVO();
+        BeanUtils.copyProperties(t, vo);
         return vo;
     }
 

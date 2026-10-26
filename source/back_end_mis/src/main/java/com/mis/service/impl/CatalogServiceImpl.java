@@ -13,7 +13,10 @@ import com.mis.mapper.MssItemMappingMapper;
 import com.mis.service.CatalogService;
 import com.mis.vo.ActionVO;
 import com.mis.vo.CatalogStatsVO;
+import com.mis.vo.CatalogVO;
+import com.mis.vo.ItemMappingVO;
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.BeanUtils;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
@@ -32,7 +35,7 @@ public class CatalogServiceImpl implements CatalogService {
             List.of("西药", "中成药", "中草药", "诊疗项目", "医用耗材");
 
     @Override
-    public PageVO<MssCatalog> catalogPage(CatalogQueryDTO q) {
+    public PageVO<CatalogVO> catalogPage(CatalogQueryDTO q) {
         Page<MssCatalog> page = new Page<>(q.getPage(), q.getSize());
         LambdaQueryWrapper<MssCatalog> w = new LambdaQueryWrapper<>();
         if (hasText(q.getKeyword())) {
@@ -47,7 +50,8 @@ public class CatalogServiceImpl implements CatalogService {
         }
         w.orderByAsc(MssCatalog::getId);
         Page<MssCatalog> res = catalogMapper.selectPage(page, w);
-        return PageVO.of(res.getRecords(), res.getTotal());
+        List<CatalogVO> vos = res.getRecords().stream().map(this::toCatalogVO).collect(java.util.stream.Collectors.toList());
+        return PageVO.of(vos, res.getTotal());
     }
 
     @Override
@@ -78,7 +82,7 @@ public class CatalogServiceImpl implements CatalogService {
     }
 
     @Override
-    public PageVO<MssItemMapping> mappingPage(MappingQueryDTO q) {
+    public PageVO<ItemMappingVO> mappingPage(MappingQueryDTO q) {
         Page<MssItemMapping> page = new Page<>(q.getPage(), q.getSize());
         LambdaQueryWrapper<MssItemMapping> w = new LambdaQueryWrapper<>();
         if (hasText(q.getKeyword())) {
@@ -89,7 +93,9 @@ public class CatalogServiceImpl implements CatalogService {
         }
         w.orderByAsc(MssItemMapping::getId);
         Page<MssItemMapping> res = mappingMapper.selectPage(page, w);
-        return PageVO.of(res.getRecords(), res.getTotal());
+        List<ItemMappingVO> vos = res.getRecords().stream().map(this::toItemMappingVO)
+                .collect(java.util.stream.Collectors.toList());
+        return PageVO.of(vos, res.getTotal());
     }
 
     @Override
@@ -156,6 +162,18 @@ public class CatalogServiceImpl implements CatalogService {
             }
         }
         return ActionVO.matched(n);
+    }
+
+    private CatalogVO toCatalogVO(MssCatalog c) {
+        CatalogVO vo = new CatalogVO();
+        BeanUtils.copyProperties(c, vo);
+        return vo;
+    }
+
+    private ItemMappingVO toItemMappingVO(MssItemMapping m) {
+        ItemMappingVO vo = new ItemMappingVO();
+        BeanUtils.copyProperties(m, vo);
+        return vo;
     }
 
     private static boolean hasText(String s) {

@@ -5,16 +5,16 @@ import com.mis.dto.InspectionFinishDTO;
 import com.mis.dto.InspectionItemUpsertDTO;
 import com.mis.dto.InspectionQueryDTO;
 import com.mis.dto.InspectionUpsertDTO;
-import com.mis.entity.MssInspection;
 import com.mis.vo.ActionVO;
 import com.mis.vo.InspectionDetailVO;
+import com.mis.vo.InspectionVO;
 
 /**
  * 飞检任务
  */
 public interface InspectionService {
 
-    PageVO<MssInspection> inspectionPage(InspectionQueryDTO query);
+    PageVO<InspectionVO> inspectionPage(InspectionQueryDTO query);
 
     ActionVO upsert(InspectionUpsertDTO dto);
 

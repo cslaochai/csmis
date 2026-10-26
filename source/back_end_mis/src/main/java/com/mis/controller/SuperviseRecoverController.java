@@ -4,9 +4,9 @@ import com.mis.common.base.PageVO;
 import com.mis.common.base.Result;
 import com.mis.dto.RecoverHandleDTO;
 import com.mis.dto.RecoverQueryDTO;
-import com.mis.entity.MssRecover;
 import com.mis.service.RecoverService;
 import com.mis.vo.ActionVO;
+import com.mis.vo.RecoverVO;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
@@ -22,12 +22,12 @@ public class SuperviseRecoverController {
     private final RecoverService recoverService;
 
     @GetMapping("/listPage")
-    public Result<PageVO<MssRecover>> listPage(RecoverQueryDTO query) {
+    public Result<PageVO<RecoverVO>> listPage(RecoverQueryDTO query) {
         return Result.success(recoverService.recoverPage(query));
     }
 
     @GetMapping("/getDetailById")
-    public Result<MssRecover> getDetail(@RequestParam Long id) {
+    public Result<RecoverVO> getDetail(@RequestParam Long id) {
         return Result.success(recoverService.getDetail(id));
     }
 

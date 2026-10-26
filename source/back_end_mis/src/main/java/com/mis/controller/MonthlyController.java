@@ -3,9 +3,9 @@ package com.mis.controller;
 import com.mis.common.base.PageResult;
 import com.mis.common.base.Result;
 import com.mis.dto.MonthlyOpDTO;
-import com.mis.entity.JinbMonthly;
 import com.mis.service.MonthlyService;
 import com.mis.vo.MonthlyResultVO;
+import com.mis.vo.MonthlyVO;
 import jakarta.validation.Valid;
 import org.springframework.web.bind.annotation.*;
 
@@ -54,8 +54,8 @@ public class MonthlyController {
 
     /** 月度结算单分页 */
     @GetMapping("/listPage")
-    public Result<PageResult<JinbMonthly>> listPage(@RequestParam(defaultValue = "1") int pageNum,
-                                                    @RequestParam(defaultValue = "10") int pageSize) {
+    public Result<PageResult<MonthlyVO>> listPage(@RequestParam(defaultValue = "1") int pageNum,
+                                                  @RequestParam(defaultValue = "10") int pageSize) {
         return Result.success(monthlyService.page(pageNum, pageSize));
     }
 }

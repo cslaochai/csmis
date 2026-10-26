@@ -2,6 +2,8 @@ package com.mis.service.impl;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.mis.common.base.PageVO;
 import com.mis.config.MisProperties;
 import com.mis.dto.CancelSettlementDTO;
@@ -16,6 +18,8 @@ import com.mis.mapper.JinbSettlementMapper;
 import com.mis.service.SettlementGatewayService;
 import com.mis.vo.DayBillItemVO;
 import com.mis.vo.ReceiptVO;
+import com.mis.vo.SettlementVO;
+import org.springframework.beans.BeanUtils;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 
@@ -26,6 +30,7 @@ import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.stream.Collectors;
 
 @Service
 public class SettlementGatewayServiceImpl implements SettlementGatewayService {
@@ -38,17 +43,48 @@ public class SettlementGatewayServiceImpl implements SettlementGatewayService {
     private final JinbInsuredPersonMapper personMapper;
     private final PolicyEngine policyEngine;
     private final MisProperties properties;
+    private final ObjectMapper objectMapper;
 
     public SettlementGatewayServiceImpl(JinbSettlementMapper settlementMapper,
                                         JinbMessageMapper messageMapper,
                                         JinbInsuredPersonMapper personMapper,
                                         PolicyEngine policyEngine,
-                                        MisProperties properties) {
+                                        MisProperties properties,
+                                        ObjectMapper objectMapper) {
         this.settlementMapper = settlementMapper;
         this.messageMapper = messageMapper;
         this.personMapper = personMapper;
         this.policyEngine = policyEngine;
         this.properties = properties;
+        this.objectMapper = objectMapper;
+    }
+
+    @Override
+    public ReceiptVO receive2304Raw(String body) {
+        try {
+            UploadSettlementDTO dto = objectMapper.readValue(body, UploadSettlementDTO.class);
+            return receive2304(dto, body);
+        } catch (JsonProcessingException e) {
+            return parseFail("2304", e);
+        }
+    }
+
+    @Override
+    public ReceiptVO receive2305Raw(String body) {
+        try {
+            CancelSettlementDTO dto = objectMapper.readValue(body, CancelSettlementDTO.class);
+            return receive2305(dto, body);
+        } catch (JsonProcessingException e) {
+            return parseFail("2305", e);
+        }
+    }
+
+    private ReceiptVO parseFail(String msgType, JsonProcessingException e) {
+        ReceiptVO vo = new ReceiptVO();
+        vo.setInfcode(-1);
+        vo.setMsgType(msgType);
+        vo.setErrMsg("报文格式错误，解析失败：" + e.getOriginalMessage());
+        return vo;
     }
 
     @Override
@@ -157,9 +193,10 @@ public class SettlementGatewayServiceImpl implements SettlementGatewayService {
     }
 
     @Override
-    public List<DayBillItemVO> dayBill(LocalDate billDate) {
+    public List<DayBillItemVO> dayBill(String billDate) {
+        LocalDate date = LocalDate.parse(billDate);
         List<JinbSettlement> list = settlementMapper.selectList(new LambdaQueryWrapper<JinbSettlement>()
-                .eq(JinbSettlement::getBillDate, billDate)
+                .eq(JinbSettlement::getBillDate, date)
                 .eq(JinbSettlement::getStatus, 1)
                 .orderByAsc(JinbSettlement::getId));
         List<DayBillItemVO> result = new ArrayList<>(list.size());
@@ -176,9 +213,9 @@ public class SettlementGatewayServiceImpl implements SettlementGatewayService {
     }
 
     @Override
-    public PageVO<JinbSettlement> settlementPage(String month, Integer status, String patientName,
-                                                 String settlementNo, String billNo, String tradeNo,
-                                                 int pageNum, int pageSize) {
+    public PageVO<SettlementVO> settlementPage(String month, Integer status, String patientName,
+                                              String settlementNo, String billNo, String tradeNo,
+                                              int pageNum, int pageSize) {
         LambdaQueryWrapper<JinbSettlement> wrapper = new LambdaQueryWrapper<>();
         if (StringUtils.hasText(month)) {
             LocalDate start = LocalDate.parse(month + "-01");
@@ -193,16 +230,27 @@ public class SettlementGatewayServiceImpl implements SettlementGatewayService {
         wrapper.orderByDesc(JinbSettlement::getId);
         Page<JinbSettlement> page = settlementMapper.selectPage(new Page<>(pageNum, pageSize), wrapper);
         // 列表不带原始报文，明细接口再返回，避免分页体积过大
-        page.getRecords().forEach(s -> s.setRawPayload(null));
-        return PageVO.of(page.getRecords(), page.getTotal());
+        List<SettlementVO> vos = page.getRecords().stream()
+                .map(s -> toVO(s, false)).collect(Collectors.toList());
+        return PageVO.of(vos, page.getTotal());
     }
 
     @Override
-    public JinbSettlement getById(Long id) {
+    public SettlementVO getById(Long id) {
         if (id == null) {
             return null;
         }
-        return settlementMapper.selectById(id);
+        JinbSettlement s = settlementMapper.selectById(id);
+        return s == null ? null : toVO(s, true);
+    }
+
+    private SettlementVO toVO(JinbSettlement s, boolean withPayload) {
+        SettlementVO vo = new SettlementVO();
+        BeanUtils.copyProperties(s, vo);
+        if (!withPayload) {
+            vo.setRawPayload(null);
+        }
+        return vo;
     }
 
     // ===== internal =====

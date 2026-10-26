@@ -3,8 +3,8 @@ package com.mis.controller;
 import com.mis.common.base.PageResult;
 import com.mis.common.base.Result;
 import com.mis.dto.PostReplaceDTO;
-import com.mis.entity.MssEmployee;
 import com.mis.service.SystemPostService;
+import com.mis.vo.EmployeeSelectVO;
 import com.mis.vo.PostVO;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -41,7 +41,7 @@ public class SystemPostController {
     }
 
     @GetMapping("/employeeSelect")
-    public Result<List<MssEmployee>> employeeSelect(@RequestParam(required = false) String keyword) {
+    public Result<List<EmployeeSelectVO>> employeeSelect(@RequestParam(required = false) String keyword) {
         return Result.success(postService.employeeSelect(keyword));
     }
 }

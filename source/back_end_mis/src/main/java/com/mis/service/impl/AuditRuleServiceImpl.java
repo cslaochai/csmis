@@ -10,10 +10,13 @@ import com.mis.entity.MssAuditRule;
 import com.mis.mapper.MssAuditRuleMapper;
 import com.mis.service.AuditRuleService;
 import com.mis.vo.ActionVO;
+import com.mis.vo.AuditRuleVO;
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.BeanUtils;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -22,7 +25,7 @@ public class AuditRuleServiceImpl implements AuditRuleService {
     private final MssAuditRuleMapper ruleMapper;
 
     @Override
-    public PageVO<MssAuditRule> rulePage(RuleQueryDTO q) {
+    public PageVO<AuditRuleVO> rulePage(RuleQueryDTO q) {
         Page<MssAuditRule> page = new Page<>(q.getPage(), q.getSize());
         LambdaQueryWrapper<MssAuditRule> w = new LambdaQueryWrapper<>();
         if (hasText(q.getKeyword())) {
@@ -38,7 +41,8 @@ public class AuditRuleServiceImpl implements AuditRuleService {
         }
         w.orderByAsc(MssAuditRule::getId);
         Page<MssAuditRule> res = ruleMapper.selectPage(page, w);
-        return PageVO.of(res.getRecords(), res.getTotal());
+        List<AuditRuleVO> vos = res.getRecords().stream().map(this::toVO).collect(Collectors.toList());
+        return PageVO.of(vos, res.getTotal());
     }
 
     @Override
@@ -90,10 +94,17 @@ public class AuditRuleServiceImpl implements AuditRuleService {
     }
 
     @Override
-    public List<MssAuditRule> enabledRules() {
+    public List<AuditRuleVO> enabledRules() {
         return ruleMapper.selectList(new LambdaQueryWrapper<MssAuditRule>()
-                .eq(MssAuditRule::getStatus, 1)
-                .orderByAsc(MssAuditRule::getId));
+                        .eq(MssAuditRule::getStatus, 1)
+                        .orderByAsc(MssAuditRule::getId))
+                .stream().map(this::toVO).collect(Collectors.toList());
+    }
+
+    private AuditRuleVO toVO(MssAuditRule rule) {
+        AuditRuleVO vo = new AuditRuleVO();
+        BeanUtils.copyProperties(rule, vo);
+        return vo;
     }
 
     private static boolean hasText(String s) {

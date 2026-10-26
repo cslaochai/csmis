@@ -2,7 +2,6 @@ package com.mis.engine;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.mis.entity.JinbSettlement;
-import com.mis.entity.MssAuditRule;
 import com.mis.entity.MssBill;
 import com.mis.entity.MssCatalog;
 import com.mis.entity.MssFeeItem;
@@ -10,6 +9,7 @@ import com.mis.mapper.JinbSettlementMapper;
 import com.mis.mapper.MssBillMapper;
 import com.mis.mapper.MssCatalogMapper;
 import com.mis.mapper.MssFeeItemMapper;
+import com.mis.vo.AuditRuleVO;
 import lombok.Data;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
@@ -59,9 +59,9 @@ public class SuperviseRuleEngine {
         private String reason;
     }
 
-    public List<Draft> scan(List<MssAuditRule> rules) {
+    public List<Draft> scan(List<AuditRuleVO> rules) {
         List<Draft> drafts = new ArrayList<>();
-        for (MssAuditRule r : rules) {
+        for (AuditRuleVO r : rules) {
             if (r.getStatus() == null || r.getStatus() != 1) {
                 continue;
             }
@@ -84,7 +84,7 @@ public class SuperviseRuleEngine {
     // ------------------------------------------------------------ 规则实现
 
     /** 重复收费：同一结算单同项目多次计费且合计达阈值 */
-    private List<Draft> duplicateCharge(MssAuditRule r) {
+    private List<Draft> duplicateCharge(AuditRuleVO r) {
         BigDecimal minAmount = param(r, "minAmount", new BigDecimal("200"));
         List<Draft> out = new ArrayList<>();
         List<MssBill> bills = billMapper.selectList(null);
@@ -112,7 +112,7 @@ public class SuperviseRuleEngine {
     }
 
     /** 超限价收费：项目单价高于医保限价（超限价比例阈值） */
-    private List<Draft> overLimitPrice(MssAuditRule r) {
+    private List<Draft> overLimitPrice(AuditRuleVO r) {
         BigDecimal overRatio = param(r, "overRatio", new BigDecimal("0.1"));
         List<Draft> out = new ArrayList<>();
         Map<String, MssCatalog> catalogByCode = new HashMap<>();
@@ -154,7 +154,7 @@ public class SuperviseRuleEngine {
     }
 
     /** 分解住院：同一参保人窗口期内多次住院结算 */
-    private List<Draft> splitHospitalization(MssAuditRule r) {
+    private List<Draft> splitHospitalization(AuditRuleVO r) {
         int windowDays = paramInt(r, "windowDays", 15);
         int minCount = paramInt(r, "minCount", 2);
         List<Draft> out = new ArrayList<>();
@@ -198,7 +198,7 @@ public class SuperviseRuleEngine {
         return out;
     }
 
-    private Draft splitDraft(MssAuditRule r, List<JinbSettlement> list, int start, int count, int windowDays) {
+    private Draft splitDraft(AuditRuleVO r, List<JinbSettlement> list, int start, int count, int windowDays) {
         JinbSettlement first = list.get(start);
         BigDecimal involved = BigDecimal.ZERO;
         StringBuilder dates = new StringBuilder();
@@ -228,7 +228,7 @@ public class SuperviseRuleEngine {
     }
 
     /** 挂床住院：住院天数长而费用极低 */
-    private List<Draft> bedHanging(MssAuditRule r) {
+    private List<Draft> bedHanging(AuditRuleVO r) {
         int minDays = paramInt(r, "minDays", 10);
         BigDecimal maxAmount = param(r, "maxAmount", new BigDecimal("500"));
         List<Draft> out = new ArrayList<>();
@@ -248,7 +248,7 @@ public class SuperviseRuleEngine {
     }
 
     /** 高额住院费用：住院费用显著高于同险种均值 */
-    private List<Draft> abnormalCost(MssAuditRule r) {
+    private List<Draft> abnormalCost(AuditRuleVO r) {
         BigDecimal avgTimes = param(r, "avgTimes", new BigDecimal("3"));
         List<Draft> out = new ArrayList<>();
         List<JinbSettlement> all = settlementMapper.selectList(null);
@@ -303,7 +303,7 @@ public class SuperviseRuleEngine {
     }
 
     /** 丙类项目入统筹：结算单含丙类项目金额并发生统筹支付 */
-    private List<Draft> payclassC(MssAuditRule r) {
+    private List<Draft> payclassC(AuditRuleVO r) {
         BigDecimal minAmount = param(r, "minAmount", new BigDecimal("200"));
         List<Draft> out = new ArrayList<>();
         List<MssBill> bills = billMapper.selectList(null);
@@ -341,7 +341,7 @@ public class SuperviseRuleEngine {
         return map;
     }
 
-    private Draft baseDraft(MssAuditRule r, MssBill b) {
+    private Draft baseDraft(AuditRuleVO r, MssBill b) {
         Draft d = new Draft();
         d.setRuleId(r.getId());
         d.setRuleName(r.getRuleName());
@@ -360,7 +360,7 @@ public class SuperviseRuleEngine {
         return d;
     }
 
-    private BigDecimal param(MssAuditRule r, String key, BigDecimal def) {
+    private BigDecimal param(AuditRuleVO r, String key, BigDecimal def) {
         try {
             Map<?, ?> map = objectMapper.readValue(r.getParams(), Map.class);
             Object v = map.get(key);
@@ -373,7 +373,7 @@ public class SuperviseRuleEngine {
         return def;
     }
 
-    private int paramInt(MssAuditRule r, String key, int def) {
+    private int paramInt(AuditRuleVO r, String key, int def) {
         try {
             Map<?, ?> map = objectMapper.readValue(r.getParams(), Map.class);
             Object v = map.get(key);

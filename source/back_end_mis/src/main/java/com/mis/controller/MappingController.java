@@ -5,9 +5,9 @@ import com.mis.common.base.Result;
 import com.mis.dto.IdDTO;
 import com.mis.dto.MappingMapDTO;
 import com.mis.dto.MappingQueryDTO;
-import com.mis.entity.MssItemMapping;
 import com.mis.service.CatalogService;
 import com.mis.vo.ActionVO;
+import com.mis.vo.ItemMappingVO;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
 
@@ -22,7 +22,7 @@ public class MappingController {
     private final CatalogService catalogService;
 
     @GetMapping("/listPage")
-    public Result<PageVO<MssItemMapping>> listPage(MappingQueryDTO query) {
+    public Result<PageVO<ItemMappingVO>> listPage(MappingQueryDTO query) {
         return Result.success(catalogService.mappingPage(query));
     }
 
@@ -33,7 +33,7 @@ public class MappingController {
 
     @PostMapping("/unmap")
     public Result<ActionVO> unmap(@RequestBody IdDTO dto) {
-        return Result.success(catalogService.unmap(Long.valueOf(dto.getId())));
+        return Result.success(catalogService.unmap(dto.getId()));
     }
 
     @PostMapping("/autoMatch")

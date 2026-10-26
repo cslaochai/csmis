@@ -2,14 +2,15 @@ package com.mis.controller;
 
 import com.mis.common.base.PageVO;
 import com.mis.common.base.Result;
+import com.mis.dto.IdDTO;
 import com.mis.dto.InspectionFinishDTO;
 import com.mis.dto.InspectionItemUpsertDTO;
 import com.mis.dto.InspectionQueryDTO;
 import com.mis.dto.InspectionUpsertDTO;
-import com.mis.entity.MssInspection;
 import com.mis.service.InspectionService;
 import com.mis.vo.ActionVO;
 import com.mis.vo.InspectionDetailVO;
+import com.mis.vo.InspectionVO;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
@@ -25,7 +26,7 @@ public class SuperviseInspectionController {
     private final InspectionService inspectionService;
 
     @GetMapping("/listPage")
-    public Result<PageVO<MssInspection>> listPage(InspectionQueryDTO query) {
+    public Result<PageVO<InspectionVO>> listPage(InspectionQueryDTO query) {
         return Result.success(inspectionService.inspectionPage(query));
     }
 
@@ -35,8 +36,8 @@ public class SuperviseInspectionController {
     }
 
     @PostMapping("/start")
-    public Result<ActionVO> start(@RequestBody @Valid com.mis.dto.IdDTO dto) {
-        return Result.success(inspectionService.start(Long.valueOf(dto.getId())));
+    public Result<ActionVO> start(@RequestBody @Valid IdDTO dto) {
+        return Result.success(inspectionService.start(dto.getId()));
     }
 
     @PostMapping("/finish")
@@ -55,12 +56,12 @@ public class SuperviseInspectionController {
     }
 
     @PostMapping("/item/delete")
-    public Result<ActionVO> deleteItem(@RequestBody @Valid com.mis.dto.IdDTO dto) {
-        return Result.success(inspectionService.deleteItem(Long.valueOf(dto.getId())));
+    public Result<ActionVO> deleteItem(@RequestBody @Valid IdDTO dto) {
+        return Result.success(inspectionService.deleteItem(dto.getId()));
     }
 
     @PostMapping("/toRecover")
-    public Result<ActionVO> toRecover(@RequestBody @Valid com.mis.dto.IdDTO dto) {
-        return Result.success(inspectionService.toRecover(Long.valueOf(dto.getId())));
+    public Result<ActionVO> toRecover(@RequestBody @Valid IdDTO dto) {
+        return Result.success(inspectionService.toRecover(dto.getId()));
     }
 }

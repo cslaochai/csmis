@@ -3,9 +3,9 @@ package com.mis.service;
 import com.mis.common.base.PageResult;
 import com.mis.dto.DictDataUpsertDTO;
 import com.mis.dto.DictTypeUpsertDTO;
-import com.mis.entity.MssDictData;
-import com.mis.entity.MssDictType;
+import com.mis.vo.DictDataVO;
 import com.mis.vo.DictGroupVO;
+import com.mis.vo.DictTypeVO;
 
 import java.util.List;
 
@@ -14,29 +14,35 @@ import java.util.List;
  */
 public interface SystemDictService {
 
-    PageResult<MssDictType> typePage(String keyword, long pageNum, long pageSize);
+    PageResult<DictTypeVO> typePage(String keyword, long pageNum, long pageSize);
 
-    List<MssDictType> typeSelectList();
+    List<DictTypeVO> typeSelectList();
 
-    MssDictType typeGetById(Long id);
+    DictTypeVO typeGetById(Long id);
 
-    MssDictType typeUpsert(DictTypeUpsertDTO dto);
+    /** HIS 契约：/type/getById 兼容 typeId 与 id 双主键入参，二选一，都缺省抛错 */
+    DictTypeVO typeGetById(Long typeId, Long id);
+
+    DictTypeVO typeUpsert(DictTypeUpsertDTO dto);
 
     void typeDelete(Long id);
 
-    PageResult<MssDictData> dataPage(String dictType, String keyword, long pageNum, long pageSize);
+    PageResult<DictDataVO> dataPage(String dictType, String keyword, long pageNum, long pageSize);
 
-    MssDictData dataGetById(Long id);
+    DictDataVO dataGetById(Long id);
+
+    /** HIS 契约：/data/detail/getById 兼容 dataId 与 id 双主键入参，二选一，都缺省抛错 */
+    DictDataVO dataGetById(Long dataId, Long id);
 
     /** 单值/逗号分隔多类型 → 数据列表（HIS：data/selectList） */
-    List<MssDictData> dataSelectList(String dictTypes);
+    List<DictDataVO> dataSelectList(String dictTypes);
 
     /** 单值/逗号分隔多类型 → 分组 [{dictType, dataList}]（HIS：data/selectGroup） */
     List<DictGroupVO> dataSelectGroup(String dictTypes);
 
-    MssDictData dataUpsert(DictDataUpsertDTO dto);
+    DictDataVO dataUpsert(DictDataUpsertDTO dto);
 
     void dataDelete(Long id);
 
-    List<MssDictData> dataList(String dictType);
+    List<DictDataVO> dataList(String dictType);
 }
