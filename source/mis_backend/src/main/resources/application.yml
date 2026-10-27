@@ -61,6 +61,17 @@ jwt:
 
 # ===== 医保结算经办（医保局端）模拟平台业务参数 =====
 jinb:
+  # 报文安全（国密）：SM4 加密 + SM2 签名 + csssl 证书链验签（对齐医保接口国密要求）
+  crypto:
+    # true=验签解密+加密签名回执；false=明文透传（开发期）
+    enabled: ${MSS_CRYPTO_ENABLED:true}
+    # 与前置机 mss 方向一致的 SM4 会话密钥（32位十六进制；生产按会话协商分发）
+    sm4-key: ${MSS_SM4_KEY:20a09e0072cce895a325a43684147195}
+    private-key: classpath:crypto/csmis-private.pem
+    cert-chain: classpath:crypto/csmis-cert.pem
+    root-ca: classpath:crypto/root-ca.pem
+    sub-ca: classpath:crypto/sub-ca.pem
+    clock-skew-seconds: 300
   # 准入的定点医疗机构（HIS 用这套凭据签到）
   medins:
     code: H4301000001
