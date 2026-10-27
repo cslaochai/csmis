@@ -20,6 +20,8 @@ public class SettleEngine {
     private static final BigDecimal ACCOUNT_MAX = new BigDecimal("1500");
 
     public DecVO compute(List<MssFeeItem> items, String insuranceType) {
+        // 参保人表 insurance_type 可能存码值（2-城镇职工 3-城乡居民）也可能是文字（经办窗口录入），先归一
+        String type = normalizeInsuranceType(insuranceType);
         BigDecimal total = z();
         BigDecimal basePool = z();
         BigDecimal selfPay = z();
@@ -44,8 +46,8 @@ public class SettleEngine {
             }
         }
 
-        BigDecimal deductible = deductible(insuranceType);
-        BigDecimal insRatio = ratio(insuranceType);
+        BigDecimal deductible = deductible(type);
+        BigDecimal insRatio = ratio(type);
         BigDecimal effectiveBase = basePool.subtract(deductible).max(z());
         BigDecimal insurancePay = effectiveBase.multiply(insRatio).setScale(2, RoundingMode.HALF_UP);
         // 起付线 + 报销后个人自付的统筹段
@@ -54,7 +56,7 @@ public class SettleEngine {
         BigDecimal personalCashPay = fullySelf.add(selfPay);
         BigDecimal personalAccount = z();
         BigDecimal cashPay = personalCashPay;
-        if ("职工医保".equals(insuranceType)) {
+        if ("职工医保".equals(type)) {
             personalAccount = personalCashPay.multiply(ACCOUNT_RATIO).min(ACCOUNT_MAX).setScale(2, RoundingMode.HALF_UP);
             cashPay = personalCashPay.subtract(personalAccount);
         }
@@ -68,6 +70,23 @@ public class SettleEngine {
         d.setDeductible(deductible);
         d.setBasePool(basePool.setScale(2, RoundingMode.HALF_UP));
         return d;
+    }
+
+    /** 码值与文字双兼容：2/城镇职工医保→职工医保，3/城乡居民医保→居民医保，其余原样（异地就医等） */
+    private String normalizeInsuranceType(String t) {
+        if (t == null) {
+            return null;
+        }
+        switch (t) {
+            case "2":
+            case "城镇职工医保":
+                return "职工医保";
+            case "3":
+            case "城乡居民医保":
+                return "居民医保";
+            default:
+                return t;
+        }
     }
 
     private BigDecimal deductible(String insuranceType) {

@@ -141,6 +141,7 @@ public class GatewayRealTimeSettleServiceImpl implements GatewayRealTimeSettleSe
         s.setPersonalPay(scale(accountToDeduct.add(cashPayFinal)));
         s.setSelfPay(scale(d.getSelfPay()));
         s.setPoolConfirm(scale(d.getInsurancePay()));
+        s.setAccountDeduct(accountToDeduct);
         s.setStatus(1);
         s.setBillDate(LocalDate.now());
         s.setWarnMsg(accountToDeduct.compareTo(d.getPersonalAccount()) < 0

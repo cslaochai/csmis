@@ -59,6 +59,10 @@ public class GatewayCryptoFilter extends OncePerRequestFilter {
             return true;
         }
         String path = request.getRequestURI();
+        // 日对账是 GET 无体明文（HIS→前置→局端均不封），进了过滤器反而被「请求体为空」拒掉
+        if (path.matches(".*/gateway/dayBill/?$")) {
+            return true;
+        }
         return !path.matches(".*/gateway/[^/]+/?$")
                 && !path.matches(".*/insure/person/query/?$");
     }

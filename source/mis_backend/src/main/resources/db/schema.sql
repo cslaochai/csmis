@@ -37,6 +37,7 @@ CREATE TABLE IF NOT EXISTS mss_settlement (
     personal_pay     DECIMAL(12,2) DEFAULT 0 COMMENT '院方申报个人账户支付',
     self_pay         DECIMAL(12,2) DEFAULT 0 COMMENT '院方申报现金自付',
     pool_confirm     DECIMAL(12,2) DEFAULT 0 COMMENT '平台核定统筹支付',
+    account_deduct   DECIMAL(12,2) DEFAULT 0 COMMENT '2301个账实扣（撤销冲正退回个账）',
     status           INT          DEFAULT 1 COMMENT '状态（1-已接收有效 2-已撤销冲正）',
     bill_date        DATE         DEFAULT NULL COMMENT '账期日期',
     receipt_no       VARCHAR(64)  DEFAULT NULL COMMENT '医保端回执编号',

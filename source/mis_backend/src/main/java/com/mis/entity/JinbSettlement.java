@@ -41,6 +41,8 @@ public class JinbSettlement implements Serializable {
     private BigDecimal selfPay;
     /** 平台核定统筹 */
     private BigDecimal poolConfirm;
+    /** 2301 个账实扣额（撤销冲正时按此退回参保人个账；2304 报盘单为 0） */
+    private BigDecimal accountDeduct;
 
     /** 状态（1-已接收有效 2-已撤销冲正） */
     private Integer status;

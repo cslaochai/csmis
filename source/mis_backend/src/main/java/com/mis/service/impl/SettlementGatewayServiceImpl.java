@@ -33,6 +33,7 @@ import java.util.List;
 import java.util.stream.Collectors;
 
 @Service
+@lombok.extern.slf4j.Slf4j
 public class SettlementGatewayServiceImpl implements SettlementGatewayService {
 
     private static final DateTimeFormatter DT = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
@@ -188,8 +189,38 @@ public class SettlementGatewayServiceImpl implements SettlementGatewayService {
         original.setCancelTime(LocalDateTime.now());
         settlementMapper.updateById(original);
 
+        // 冲正退个账：2301 实时结算扣过的个账必须原额退回参保人余额，否则撤销后患者的钱凭空消失。
+        // 2304 报盘单 account_deduct=0，天然跳过。
+        refundAccountOnRevoke(original);
+
         saveMessage("2305", dto.getTradeNo(), dto.getOrigTradeNo(), 1, original.getReceiptNo(), null, rawPayload);
         return successReceipt2305(dto, original.getReceiptNo(), "医保结算经办平台已撤销该笔结算并冲正", replyTime);
+    }
+
+    /** 撤销冲正连带退个账：按 account_deduct 原额退回参保人（先按医保卡号找人，退化为身份证）。 */
+    private void refundAccountOnRevoke(JinbSettlement original) {
+        java.math.BigDecimal deduct = original.getAccountDeduct();
+        if (deduct == null || deduct.signum() <= 0) {
+            return;
+        }
+        JinbInsuredPerson person = personMapper.selectOne(new LambdaQueryWrapper<JinbInsuredPerson>()
+                .eq(JinbInsuredPerson::getInsuranceNo, original.getInsuranceNo())
+                .last("limit 1"));
+        if (person == null && original.getIdCard() != null) {
+            person = personMapper.selectOne(new LambdaQueryWrapper<JinbInsuredPerson>()
+                    .eq(JinbInsuredPerson::getIdCard, original.getIdCard())
+                    .last("limit 1"));
+        }
+        if (person == null) {
+            log.warn("[2305冲正] 找不到参保人，个账 ¥{} 未退回（tradeNo={}）", deduct.toPlainString(), original.getTradeNo());
+            return;
+        }
+        BigDecimal before = person.getAccountBalance() == null ? BigDecimal.ZERO : person.getAccountBalance();
+        person.setAccountBalance(before.add(deduct));
+        personMapper.updateById(person);
+        log.info("[2305冲正] 个账退回 ¥{}，参保人 {} 余额 {} → {}（tradeNo={}）",
+                deduct.toPlainString(), person.getName(), before.toPlainString(),
+                person.getAccountBalance().toPlainString(), original.getTradeNo());
     }
 
     @Override
