@@ -1,0 +1,44 @@
+services:
+  csmis-backend:
+    build:
+      context: ./backend
+    image: csmis-backend:local
+    container_name: csmis-backend
+    restart: unless-stopped
+    # 连接串与口令全部来自同目录 .env（该文件不入库），application.yml 里只有 ${MIS_*:} 占位
+    env_file: .env
+    environment:
+      TZ: Asia/Shanghai
+      JAVA_OPTS: -Xms384m -Xmx1g -XX:+UseG1GC -Duser.timezone=Asia/Shanghai
+    ports:
+      # 宿主 8010（132 上 8090 已被 Nacos 占用）→ 容器 8090，context-path /mss
+      - "8010:8090"
+    # MySQL 是宿主机上的进程（非容器），容器内用 host.docker.internal 回到宿主
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    healthcheck:
+      test: [ "CMD", "bash", "-c", "exec 3<>/dev/tcp/127.0.0.1/8090" ]
+      interval: 10s
+      timeout: 5s
+      retries: 60
+      start_period: 90s
+    networks:
+      - mss
+
+  csmis-front:
+    build:
+      context: ./front
+    image: csmis-front:local
+    container_name: csmis-front
+    restart: unless-stopped
+    ports:
+      - "3200:80"
+    depends_on:
+      csmis-backend:
+        condition: service_healthy
+    networks:
+      - mss
+
+networks:
+  mss:
+    driver: bridge
