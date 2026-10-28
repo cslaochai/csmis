@@ -99,6 +99,7 @@ import {
   Avatar,
 } from '@element-plus/icons-vue'
 import { useAuthStore } from '@/stores/auth'
+import { encryptPassword } from '@/lib/password'
 import BrandMark from '@/components/BrandMark.vue'
 
 const router = useRouter()
@@ -128,7 +129,9 @@ async function onSubmit() {
   await formRef.value.validate()
   loading.value = true
   try {
-    await auth.login(form.username.trim(), form.password)
+    // 口令先 SM2 加密再上网（公钥来自 /auth/publicKey，后端解密后进 BCrypt 校验）
+    const password = await encryptPassword(form.password)
+    await auth.login(form.username.trim(), password)
     ElMessage.success('登录成功')
     router.replace('/')
   } catch (e) {

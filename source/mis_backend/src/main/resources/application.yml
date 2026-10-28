@@ -4,6 +4,8 @@ server:
     context-path: /mss
 
 spring:
+  profiles:
+    active: ${SPRING_PROFILES_ACTIVE:dev}
   application:
     name: mss-back-end
   jackson:
@@ -13,9 +15,6 @@ spring:
       write-dates-as-timestamps: false
   datasource:
     driver-class-name: com.mysql.cj.jdbc.Driver
-    url: ${MIS_DB_URL:jdbc:mysql://192.168.88.132:3306/mss_insurance?useUnicode=true&characterEncoding=utf8&zeroDateTimeBehavior=convertToNull&useSSL=false&serverTimezone=Asia/Shanghai&allowPublicKeyRetrieval=true&createDatabaseIfNotExist=true}
-    username: ${MIS_DB_USERNAME:xz_feng}
-    password: ${MIS_DB_PASSWORD:Feng123456!}
     hikari:
       connection-timeout: 30000
       maximum-pool-size: 10
@@ -44,19 +43,12 @@ springdoc:
   api-docs:
     path: /v3/api-docs
 knife4j:
-  enable: true
   setting:
     language: zh_cn
 
-logging:
-  level:
-    com.mss: debug
-
 # ===== 登录鉴权（JWT）=====
 jwt:
-  # HS256 签名密钥（生产用环境变量覆盖）
-  secret: ${JWT_SECRET:mss-insurance-jwt-secret-2026-0123456789abcdef}
-  # token 有效期（毫秒），默认 24 小时
+  # token 有效期（毫秒），默认 24 小时；签名密钥属环境项，落 profile 文件
   expiration: 86400000
 
 # ===== 医保结算经办（医保局端）模拟平台业务参数 =====
@@ -65,8 +57,6 @@ jinb:
   crypto:
     # true=验签解密+加密签名回执；false=明文透传（开发期）
     enabled: ${MSS_CRYPTO_ENABLED:true}
-    # 与前置机 mss 方向一致的 SM4 会话密钥（32位十六进制；生产按会话协商分发）
-    sm4-key: ${MSS_SM4_KEY:20a09e0072cce895a325a43684147195}
     private-key: classpath:crypto/csmis-private.pem
     cert-chain: classpath:crypto/csmis-cert.pem
     root-ca: classpath:crypto/root-ca.pem
@@ -93,3 +83,8 @@ jinb:
     resident:
       outpatient: {deductible: 0,    ratio: 0.55}
       inpatient:  {deductible: 1000, ratio: 0.70}
+
+# 业务日志级别两环境同值，声明一次；dev 要开 SQL 调试就在 application-dev.yml 里覆盖成 debug
+logging:
+  level:
+    com.mss: info

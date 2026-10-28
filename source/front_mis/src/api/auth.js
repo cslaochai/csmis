@@ -1,5 +1,9 @@
-// 认证接口：登录 / 当前用户 / 菜单 / 登出 / 改密
+// 认证接口：公钥 / 登录 / 当前用户 / 菜单 / 登出 / 改密
 import request from './request'
+
+export function getPublicKeyApi() {
+  return request.get('/auth/publicKey')
+}
 
 export function loginApi(data) {
   return request.post('/auth/login', data)

@@ -27,6 +27,7 @@ public class AuthFilter extends OncePerRequestFilter {
 
     private static final String[] WHITE_LIST = {
             "/auth/login",
+            "/auth/publicKey",
             "/gateway/",
             "/insure/person/query",
             "/doc.html",

@@ -104,6 +104,7 @@ import { useRoute, useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { useAuthStore } from '@/stores/auth'
 import { changePasswordApi } from '@/api/auth'
+import { encryptPassword } from '@/lib/password'
 import { dashboardSummary } from '@/api/insurance'
 import BrandMark from '@/components/BrandMark.vue'
 
@@ -164,10 +165,12 @@ async function onChangePassword() {
   await pwdFormRef.value.validate()
   pwdSaving.value = true
   try {
-    await changePasswordApi({
-      oldPassword: pwdForm.value.oldPassword,
-      newPassword: pwdForm.value.newPassword,
-    })
+    // 旧/新口令先 SM2 加密再上网（与登录同一套公钥，后端解密后校验）
+    const [oldPassword, newPassword] = await Promise.all([
+      encryptPassword(pwdForm.value.oldPassword),
+      encryptPassword(pwdForm.value.newPassword),
+    ])
+    await changePasswordApi({ oldPassword, newPassword })
     ElMessage.success('密码修改成功')
     pwdVisible.value = false
   } catch (e) {

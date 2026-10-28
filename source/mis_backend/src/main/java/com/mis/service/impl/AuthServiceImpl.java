@@ -4,6 +4,7 @@ import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.mis.common.exception.BusinessException;
 import com.mis.config.JwtUtils;
 import com.mis.config.LoginUser;
+import com.mis.config.PasswordCipherService;
 import com.mis.config.UserContext;
 import com.mis.dto.ChangePasswordDTO;
 import com.mis.dto.LoginRequestDTO;
@@ -12,6 +13,7 @@ import com.mis.mapper.*;
 import com.mis.service.AuthService;
 import com.mis.vo.LoginVO;
 import com.mis.vo.MenuVO;
+import com.mis.vo.PublicKeyVO;
 import com.mis.vo.UserInfoVO;
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
@@ -42,13 +44,24 @@ public class AuthServiceImpl implements AuthService {
     private final MssRoleMenuMapper roleMenuMapper;
     private final PasswordEncoder passwordEncoder;
     private final JwtUtils jwtUtils;
+    private final PasswordCipherService passwordCipherService;
+
+    @Override
+    public PublicKeyVO publicKey() {
+        PublicKeyVO vo = new PublicKeyVO();
+        vo.setKeyId(passwordCipherService.getKeyId());
+        vo.setPublicKey(passwordCipherService.getPublicKeyHex());
+        return vo;
+    }
 
     @Override
     public LoginVO login(LoginRequestDTO dto, HttpServletRequest request) {
+        // 口令传输加密：前端用 /auth/publicKey 下发的 SM2 公钥加密，这里还原成明文再进 BCrypt 校验
+        String rawPassword = passwordCipherService.decrypt(dto.getPassword());
         MssUser user = userMapper.selectOne(new LambdaQueryWrapper<MssUser>()
                 .eq(MssUser::getUserName, dto.getUsername())
                 .last("LIMIT 1"));
-        if (user == null || !passwordEncoder.matches(dto.getPassword(), user.getPassword())) {
+        if (user == null || !passwordEncoder.matches(rawPassword, user.getPassword())) {
             throw new BusinessException("用户名或密码错误");
         }
         if (user.getStatus() != null && user.getStatus() == 0) {
@@ -166,12 +179,15 @@ public class AuthServiceImpl implements AuthService {
         if (user == null) {
             throw new BusinessException(401, "登录已失效");
         }
-        if (!passwordEncoder.matches(dto.getOldPassword(), user.getPassword())) {
+        // 口令传输加密：旧/新口令均先 SM2 解密还原，再走原有校验
+        String oldPassword = passwordCipherService.decrypt(dto.getOldPassword());
+        String newPassword = passwordCipherService.decrypt(dto.getNewPassword());
+        if (!passwordEncoder.matches(oldPassword, user.getPassword())) {
             throw new BusinessException("旧密码错误");
         }
         MssUser update = new MssUser();
         update.setId(user.getId());
-        update.setPassword(passwordEncoder.encode(dto.getNewPassword()));
+        update.setPassword(passwordEncoder.encode(newPassword));
         update.setPasswordUpdateTime(LocalDateTime.now());
         userMapper.updateById(update);
     }

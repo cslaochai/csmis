@@ -6,6 +6,7 @@ import com.mis.dto.LoginRequestDTO;
 import com.mis.service.AuthService;
 import com.mis.vo.LoginVO;
 import com.mis.vo.MenuVO;
+import com.mis.vo.PublicKeyVO;
 import com.mis.vo.UserInfoVO;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -26,6 +27,12 @@ import java.util.List;
 public class AuthController {
 
     private final AuthService authService;
+
+    @Operation(summary = "获取登录口令加密公钥")
+    @GetMapping("/publicKey")
+    public Result<PublicKeyVO> publicKey() {
+        return Result.success("获取成功", authService.publicKey());
+    }
 
     @Operation(summary = "用户登录")
     @PostMapping("/login")
