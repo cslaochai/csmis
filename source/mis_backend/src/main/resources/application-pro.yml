@@ -1,0 +1,25 @@
+# 生产环境：只写「与 dev 取值不同」的项，真值由容器 .env 注入（清单见 docker/.env.example）
+spring:
+  datasource:
+    url: ${MIS_DB_URL:}
+    username: ${MIS_DB_USERNAME:}
+    password: ${MIS_DB_PASSWORD:}
+
+jwt:
+  # HS256 签名密钥：不注入则 token 签发/校验不可用
+  secret: ${JWT_SECRET:}
+
+mis:
+  security:
+    sm2:
+      # 登录口令传输加密 SM2 私钥（64 hex）：写死固定值，重启不失效（前端缓存公钥不失效）；公钥由私钥推导
+      private-key: 53f21da6d966236ac499bc123bf9b3fc5e32c0a241e0bdf62159bb5e859619ba
+
+jinb:
+  crypto:
+    # 与前置机 mss 方向一致的 SM4 会话密钥（32位十六进制）：不注入则国密报文加解密失败，医保链路不可用
+    sm4-key: ${MSS_SM4_KEY:}
+
+knife4j:
+  # 接口文档生产关闭；dev 在 application-dev.yml 里开着
+  enable: false
