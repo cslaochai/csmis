@@ -18,7 +18,7 @@ import java.time.LocalDateTime;
 @TableName("mss_message")
 public class JinbMessage implements Serializable {
 
-    @TableId(type = IdType.AUTO)
+    @TableId(type = IdType.ASSIGN_ID)
     @JsonSerialize(using = ToStringSerializer.class)
     private Long id;
 

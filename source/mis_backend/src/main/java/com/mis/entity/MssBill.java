@@ -21,7 +21,7 @@ import java.time.LocalDateTime;
 @TableName("mss_bill")
 public class MssBill implements Serializable {
 
-    @TableId(type = IdType.AUTO)
+    @TableId(type = IdType.ASSIGN_ID)
     @JsonSerialize(using = ToStringSerializer.class)
     private Long id;
 

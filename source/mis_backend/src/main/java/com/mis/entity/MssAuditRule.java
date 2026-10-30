@@ -19,7 +19,7 @@ import java.time.LocalDateTime;
 @TableName("mss_audit_rule")
 public class MssAuditRule implements Serializable {
 
-    @TableId(type = IdType.AUTO)
+    @TableId(type = IdType.ASSIGN_ID)
     @JsonSerialize(using = ToStringSerializer.class)
     private Long id;
 
