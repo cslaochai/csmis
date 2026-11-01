@@ -35,13 +35,13 @@ import java.util.stream.Collectors;
 @RequiredArgsConstructor
 public class AuthServiceImpl implements AuthService {
 
-    private final MssUserMapper userMapper;
-    private final MssEmployeeMapper employeeMapper;
-    private final MssEmployeePostMapper employeePostMapper;
-    private final MssRoleMapper roleMapper;
-    private final MssDepartmentMapper departmentMapper;
-    private final MssMenuMapper menuMapper;
-    private final MssRoleMenuMapper roleMenuMapper;
+    private final SysUserMapper userMapper;
+    private final SysEmployeeMapper employeeMapper;
+    private final SysEmployeePostMapper employeePostMapper;
+    private final SysRoleMapper roleMapper;
+    private final SysDepartmentMapper departmentMapper;
+    private final SysMenuMapper menuMapper;
+    private final SysRoleMenuMapper roleMenuMapper;
     private final PasswordEncoder passwordEncoder;
     private final JwtUtils jwtUtils;
     private final PasswordCipherService passwordCipherService;
@@ -58,8 +58,8 @@ public class AuthServiceImpl implements AuthService {
     public LoginVO login(LoginRequestDTO dto, HttpServletRequest request) {
         // 口令传输加密：前端用 /auth/publicKey 下发的 SM2 公钥加密，这里还原成明文再进 BCrypt 校验
         String rawPassword = passwordCipherService.decrypt(dto.getPassword());
-        MssUser user = userMapper.selectOne(new LambdaQueryWrapper<MssUser>()
-                .eq(MssUser::getUserName, dto.getUsername())
+        SysUser user = userMapper.selectOne(new LambdaQueryWrapper<SysUser>()
+                .eq(SysUser::getUserName, dto.getUsername())
                 .last("LIMIT 1"));
         if (user == null || !passwordEncoder.matches(rawPassword, user.getPassword())) {
             throw new BusinessException("用户名或密码错误");
@@ -72,21 +72,21 @@ public class AuthServiceImpl implements AuthService {
         }
 
         // 岗位 = 角色 × 科室：取该员工主岗位（is_primary=1），无主岗位则取第一条
-        MssEmployeePost post = resolvePrimaryPost(user.getEmpId());
+        SysEmployeePost post = resolvePrimaryPost(user.getEmpId());
         if (post == null) {
             throw new BusinessException("账号未配置岗位（角色×科室），请联系管理员在岗位管理中配置");
         }
-        MssRole role = roleMapper.selectById(post.getRoleId());
+        SysRole role = roleMapper.selectById(post.getRoleId());
         if (role == null || (role.getStatus() != null && role.getStatus() == 0)) {
             throw new BusinessException("岗位角色不可用，请联系管理员");
         }
-        MssDepartment dept = departmentMapper.selectById(post.getDeptId());
+        SysDepartment dept = departmentMapper.selectById(post.getDeptId());
 
         String token = jwtUtils.generateToken(user.getId(), user.getUserName(), role.getRoleCode(),
                 dept == null ? null : dept.getId(), dept == null ? null : dept.getDeptName());
 
         // 记录登录习惯
-        MssUser update = new MssUser();
+        SysUser update = new SysUser();
         update.setId(user.getId());
         update.setLastLoginTime(LocalDateTime.now());
         update.setLastLoginIp(clientIp(request));
@@ -108,7 +108,7 @@ public class AuthServiceImpl implements AuthService {
     @Override
     public UserInfoVO info() {
         LoginUser loginUser = requireLogin();
-        MssUser user = userMapper.selectById(loginUser.getUserId());
+        SysUser user = userMapper.selectById(loginUser.getUserId());
         if (user == null) {
             throw new BusinessException(401, "登录已失效");
         }
@@ -124,7 +124,7 @@ public class AuthServiceImpl implements AuthService {
         vo.setDeptName(loginUser.getDeptName());
 
         // 员工姓名
-        MssEmployee emp = user.getEmpId() == null ? null : employeeMapper.selectById(user.getEmpId());
+        SysEmployee emp = user.getEmpId() == null ? null : employeeMapper.selectById(user.getEmpId());
         if (emp != null) {
             vo.setEmpName(emp.getEmpName());
             if (vo.getDeptName() == null) {
@@ -133,12 +133,12 @@ public class AuthServiceImpl implements AuthService {
         }
 
         // 全部角色（按员工岗位）
-        List<MssRole> roles = rolesOfEmployee(user.getEmpId());
-        vo.setRoleCodes(roles.stream().map(MssRole::getRoleCode).collect(Collectors.toList()));
-        vo.setRoleNames(roles.stream().map(MssRole::getRoleName).collect(Collectors.toList()));
+        List<SysRole> roles = rolesOfEmployee(user.getEmpId());
+        vo.setRoleCodes(roles.stream().map(SysRole::getRoleCode).collect(Collectors.toList()));
+        vo.setRoleNames(roles.stream().map(SysRole::getRoleName).collect(Collectors.toList()));
         String roleName = roles.stream()
                 .filter(r -> Objects.equals(r.getRoleCode(), loginUser.getRoleCode()))
-                .map(MssRole::getRoleName)
+                .map(SysRole::getRoleName)
                 .findFirst().orElse(null);
         vo.setRoleName(roleName);
 
@@ -150,9 +150,9 @@ public class AuthServiceImpl implements AuthService {
     @Override
     public List<MenuVO> menus() {
         LoginUser loginUser = requireLogin();
-        List<Long> menuIds = roleMenuMapper.selectList(new LambdaQueryWrapper<MssRoleMenu>()
-                        .eq(MssRoleMenu::getRoleId, roleIdOfCode(loginUser.getRoleCode())))
-                .stream().map(MssRoleMenu::getMenuId).collect(Collectors.toList());
+        List<Long> menuIds = roleMenuMapper.selectList(new LambdaQueryWrapper<SysRoleMenu>()
+                        .eq(SysRoleMenu::getRoleId, roleIdOfCode(loginUser.getRoleCode())))
+                .stream().map(SysRoleMenu::getMenuId).collect(Collectors.toList());
         if (menuIds.isEmpty()) {
             return new ArrayList<>();
         }
@@ -175,7 +175,7 @@ public class AuthServiceImpl implements AuthService {
     @Override
     public void changePassword(ChangePasswordDTO dto) {
         LoginUser loginUser = requireLogin();
-        MssUser user = userMapper.selectById(loginUser.getUserId());
+        SysUser user = userMapper.selectById(loginUser.getUserId());
         if (user == null) {
             throw new BusinessException(401, "登录已失效");
         }
@@ -185,7 +185,7 @@ public class AuthServiceImpl implements AuthService {
         if (!passwordEncoder.matches(oldPassword, user.getPassword())) {
             throw new BusinessException("旧密码错误");
         }
-        MssUser update = new MssUser();
+        SysUser update = new SysUser();
         update.setId(user.getId());
         update.setPassword(passwordEncoder.encode(newPassword));
         update.setPasswordUpdateTime(LocalDateTime.now());
@@ -205,26 +205,26 @@ public class AuthServiceImpl implements AuthService {
     /**
      * 取员工主岗位（is_primary=1），无主岗位则取第一条（按 id 升序）
      */
-    private MssEmployeePost resolvePrimaryPost(Long employeeId) {
+    private SysEmployeePost resolvePrimaryPost(Long employeeId) {
         if (employeeId == null) {
             return null;
         }
-        List<MssEmployeePost> posts = employeePostMapper.selectList(new LambdaQueryWrapper<MssEmployeePost>()
-                .eq(MssEmployeePost::getEmployeeId, employeeId)
-                .orderByAsc(MssEmployeePost::getId));
+        List<SysEmployeePost> posts = employeePostMapper.selectList(new LambdaQueryWrapper<SysEmployeePost>()
+                .eq(SysEmployeePost::getEmployeeId, employeeId)
+                .orderByAsc(SysEmployeePost::getId));
         return posts.stream()
                 .filter(p -> Objects.equals(p.getIsPrimary(), 1))
                 .findFirst()
                 .orElse(posts.isEmpty() ? null : posts.get(0));
     }
 
-    private List<MssRole> rolesOfEmployee(Long employeeId) {
+    private List<SysRole> rolesOfEmployee(Long employeeId) {
         if (employeeId == null) {
             return new ArrayList<>();
         }
-        List<Long> roleIds = employeePostMapper.selectList(new LambdaQueryWrapper<MssEmployeePost>()
-                        .eq(MssEmployeePost::getEmployeeId, employeeId))
-                .stream().map(MssEmployeePost::getRoleId).distinct().collect(Collectors.toList());
+        List<Long> roleIds = employeePostMapper.selectList(new LambdaQueryWrapper<SysEmployeePost>()
+                        .eq(SysEmployeePost::getEmployeeId, employeeId))
+                .stream().map(SysEmployeePost::getRoleId).distinct().collect(Collectors.toList());
         if (roleIds.isEmpty()) {
             return new ArrayList<>();
         }
@@ -232,8 +232,8 @@ public class AuthServiceImpl implements AuthService {
     }
 
     private Long roleIdOfCode(String roleCode) {
-        MssRole role = roleMapper.selectOne(new LambdaQueryWrapper<MssRole>()
-                .eq(MssRole::getRoleCode, roleCode).last("LIMIT 1"));
+        SysRole role = roleMapper.selectOne(new LambdaQueryWrapper<SysRole>()
+                .eq(SysRole::getRoleCode, roleCode).last("LIMIT 1"));
         return role == null ? null : role.getId();
     }
 
@@ -242,20 +242,20 @@ public class AuthServiceImpl implements AuthService {
         if (roleId == null) {
             return new ArrayList<>();
         }
-        List<Long> menuIds = roleMenuMapper.selectList(new LambdaQueryWrapper<MssRoleMenu>()
-                        .eq(MssRoleMenu::getRoleId, roleId))
-                .stream().map(MssRoleMenu::getMenuId).collect(Collectors.toList());
+        List<Long> menuIds = roleMenuMapper.selectList(new LambdaQueryWrapper<SysRoleMenu>()
+                        .eq(SysRoleMenu::getRoleId, roleId))
+                .stream().map(SysRoleMenu::getMenuId).collect(Collectors.toList());
         if (menuIds.isEmpty()) {
             return new ArrayList<>();
         }
         return menuMapper.selectBatchIds(menuIds).stream()
-                .map(MssMenu::getPermission)
+                .map(SysMenu::getPermission)
                 .filter(p -> p != null && !p.isEmpty())
                 .distinct()
                 .collect(Collectors.toList());
     }
 
-    private MenuVO toMenuVO(MssMenu m) {
+    private MenuVO toMenuVO(SysMenu m) {
         MenuVO vo = new MenuVO();
         BeanUtils.copyProperties(m, vo);
         return vo;

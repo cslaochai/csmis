@@ -4,8 +4,8 @@ import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.mis.common.base.PageVO;
 import com.mis.dto.BizPageParam;
-import com.mis.entity.MssRecon;
-import com.mis.mapper.MssReconMapper;
+import com.mis.entity.MisRecon;
+import com.mis.mapper.MisReconMapper;
 import com.mis.service.ReconService;
 import com.mis.vo.ActionVO;
 import com.mis.vo.ReconVO;
@@ -21,14 +21,14 @@ import java.util.stream.Collectors;
 @RequiredArgsConstructor
 public class ReconServiceImpl implements ReconService {
 
-    private final MssReconMapper reconMapper;
+    private final MisReconMapper reconMapper;
 
     @Override
     public PageVO<ReconVO> reconPage(BizPageParam q) {
-        Page<MssRecon> page = new Page<>(q.getPage(), q.getSize());
-        LambdaQueryWrapper<MssRecon> w = new LambdaQueryWrapper<>();
-        w.orderByAsc(MssRecon::getPeriod);
-        Page<MssRecon> res = reconMapper.selectPage(page, w);
+        Page<MisRecon> page = new Page<>(q.getPage(), q.getSize());
+        LambdaQueryWrapper<MisRecon> w = new LambdaQueryWrapper<>();
+        w.orderByAsc(MisRecon::getPeriod);
+        Page<MisRecon> res = reconMapper.selectPage(page, w);
         List<ReconVO> vos = res.getRecords().stream().map(r -> {
             ReconVO vo = new ReconVO();
             BeanUtils.copyProperties(r, vo);
@@ -42,8 +42,8 @@ public class ReconServiceImpl implements ReconService {
         if (period == null || period.isBlank()) {
             return ActionVO.fail("缺少账期");
         }
-        MssRecon r = reconMapper.selectOne(new LambdaQueryWrapper<MssRecon>()
-                .eq(MssRecon::getPeriod, period).last("limit 1"));
+        MisRecon r = reconMapper.selectOne(new LambdaQueryWrapper<MisRecon>()
+                .eq(MisRecon::getPeriod, period).last("limit 1"));
         if (r == null) {
             return ActionVO.fail("账期不存在");
         }

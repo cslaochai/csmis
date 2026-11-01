@@ -6,8 +6,8 @@ import com.mis.common.base.PageVO;
 import com.mis.dto.CancelSettlementDTO;
 import com.mis.dto.GatewayRealTimeSettleDTO;
 import com.mis.dto.UploadSettlementDTO;
-import com.mis.entity.MssCatalog;
-import com.mis.mapper.MssCatalogMapper;
+import com.mis.entity.MisCatalog;
+import com.mis.mapper.MisCatalogMapper;
 import com.mis.service.GatewayRealTimeSettleService;
 import com.mis.service.SettlementGatewayService;
 import com.mis.vo.DayBillItemVO;
@@ -28,11 +28,11 @@ public class GatewayController {
 
     private final SettlementGatewayService gatewayService;
     private final GatewayRealTimeSettleService realTimeSettleService;
-    private final MssCatalogMapper catalogMapper;
+    private final MisCatalogMapper catalogMapper;
 
     public GatewayController(SettlementGatewayService gatewayService,
                              GatewayRealTimeSettleService realTimeSettleService,
-                             MssCatalogMapper catalogMapper) {
+                             MisCatalogMapper catalogMapper) {
         this.gatewayService = gatewayService;
         this.realTimeSettleService = realTimeSettleService;
         this.catalogMapper = catalogMapper;
@@ -117,14 +117,14 @@ public class GatewayController {
     }
 
     private Result<Map<String, Object>> catalogDownload(String dictType) {
-        LambdaQueryWrapper<MssCatalog> q = new LambdaQueryWrapper<>();
+        LambdaQueryWrapper<MisCatalog> q = new LambdaQueryWrapper<>();
         switch (dictType) {
-            case "DRUG" -> q.in(MssCatalog::getCategory, "西药", "中成药", "中草药");
-            case "DIAG" -> q.eq(MssCatalog::getCategory, "诊疗项目");
-            case "MAT" -> q.eq(MssCatalog::getCategory, "医用耗材");
+            case "DRUG" -> q.in(MisCatalog::getCategory, "西药", "中成药", "中草药");
+            case "DIAG" -> q.eq(MisCatalog::getCategory, "诊疗项目");
+            case "MAT" -> q.eq(MisCatalog::getCategory, "医用耗材");
             default -> throw new IllegalArgumentException("不支持的目录类型：" + dictType);
         }
-        List<MssCatalog> list = catalogMapper.selectList(q.orderByAsc(MssCatalog::getYbCode));
+        List<MisCatalog> list = catalogMapper.selectList(q.orderByAsc(MisCatalog::getYbCode));
         Map<String, Object> data = new HashMap<>();
         data.put("infcode", 0);
         data.put("errMsg", null);

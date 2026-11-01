@@ -24,7 +24,7 @@ public class EmployeeUpsertDTO implements Serializable {
     @NotBlank(message = "员工姓名不能为空")
     private String empName;
 
-    /** 员工类型（mss_emp_type 字典：1-经办员 2-审核员 3-管理员 4-其他） */
+    /** 员工类型（sys_emp_type 字典：1-经办员 2-审核员 3-管理员 4-其他） */
     private Integer empType;
 
     /** 性别（1-男 2-女 3-未知） */

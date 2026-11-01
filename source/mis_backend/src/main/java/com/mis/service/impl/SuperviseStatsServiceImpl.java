@@ -1,14 +1,14 @@
 package com.mis.service.impl;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
-import com.mis.entity.MssAuditRule;
-import com.mis.entity.MssInspection;
-import com.mis.entity.MssRecover;
-import com.mis.entity.MssSuspicion;
-import com.mis.mapper.MssAuditRuleMapper;
-import com.mis.mapper.MssInspectionMapper;
-import com.mis.mapper.MssRecoverMapper;
-import com.mis.mapper.MssSuspicionMapper;
+import com.mis.entity.MifAuditRule;
+import com.mis.entity.MifInspection;
+import com.mis.entity.MifRecover;
+import com.mis.entity.MifSuspicion;
+import com.mis.mapper.MifAuditRuleMapper;
+import com.mis.mapper.MifInspectionMapper;
+import com.mis.mapper.MifRecoverMapper;
+import com.mis.mapper.MifSuspicionMapper;
 import com.mis.service.SuperviseStatsService;
 import com.mis.vo.SuperviseStatsVO;
 import lombok.RequiredArgsConstructor;
@@ -25,22 +25,22 @@ import java.util.Map;
 @RequiredArgsConstructor
 public class SuperviseStatsServiceImpl implements SuperviseStatsService {
 
-    private final MssAuditRuleMapper ruleMapper;
-    private final MssSuspicionMapper suspicionMapper;
-    private final MssInspectionMapper inspectionMapper;
-    private final MssRecoverMapper recoverMapper;
+    private final MifAuditRuleMapper ruleMapper;
+    private final MifSuspicionMapper suspicionMapper;
+    private final MifInspectionMapper inspectionMapper;
+    private final MifRecoverMapper recoverMapper;
 
     @Override
     public SuperviseStatsVO stats() {
         SuperviseStatsVO vo = new SuperviseStatsVO();
 
-        vo.setRuleCount(ruleMapper.selectCount(new LambdaQueryWrapper<MssAuditRule>()
-                .eq(MssAuditRule::getStatus, 1)));
+        vo.setRuleCount(ruleMapper.selectCount(new LambdaQueryWrapper<MifAuditRule>()
+                .eq(MifAuditRule::getStatus, 1)));
 
-        List<MssSuspicion> suspicions = suspicionMapper.selectList(null);
+        List<MifSuspicion> suspicions = suspicionMapper.selectList(null);
         long pending = 0, confirmed = 0, excluded = 0;
         BigDecimal confirmedAmount = z();
-        for (MssSuspicion s : suspicions) {
+        for (MifSuspicion s : suspicions) {
             switch (nzStatus(s.getStatus(), "待核实")) {
                 case "已确认" -> {
                     confirmed++;
@@ -56,9 +56,9 @@ public class SuperviseStatsServiceImpl implements SuperviseStatsService {
         vo.setSuspicionExcluded(excluded);
         vo.setConfirmedAmount(confirmedAmount);
 
-        List<MssRecover> recovers = recoverMapper.selectList(null);
+        List<MifRecover> recovers = recoverMapper.selectList(null);
         BigDecimal pendingRecover = z(), recovered = z(), writeOff = z();
-        for (MssRecover r : recovers) {
+        for (MifRecover r : recovers) {
             switch (nzStatus(r.getStatus(), "待追回")) {
                 case "已追回" -> recovered = recovered.add(nz(r.getRecoverAmount()));
                 case "已核销" -> writeOff = writeOff.add(nz(r.getRecoverAmount()));
@@ -69,19 +69,19 @@ public class SuperviseStatsServiceImpl implements SuperviseStatsService {
         vo.setRecoveredAmount(recovered);
         vo.setWriteOffAmount(writeOff);
 
-        vo.setInspectionRunning(inspectionMapper.selectCount(new LambdaQueryWrapper<MssInspection>()
-                .eq(MssInspection::getStatus, "检查中")));
-        vo.setInspectionDone(inspectionMapper.selectCount(new LambdaQueryWrapper<MssInspection>()
-                .eq(MssInspection::getStatus, "已完成")));
+        vo.setInspectionRunning(inspectionMapper.selectCount(new LambdaQueryWrapper<MifInspection>()
+                .eq(MifInspection::getStatus, "检查中")));
+        vo.setInspectionDone(inspectionMapper.selectCount(new LambdaQueryWrapper<MifInspection>()
+                .eq(MifInspection::getStatus, "已完成")));
 
         vo.setRuleDist(ruleDist(suspicions));
         vo.setTrend(trend(suspicions));
         return vo;
     }
 
-    private List<SuperviseStatsVO.RuleDistVO> ruleDist(List<MssSuspicion> suspicions) {
+    private List<SuperviseStatsVO.RuleDistVO> ruleDist(List<MifSuspicion> suspicions) {
         Map<String, SuperviseStatsVO.RuleDistVO> byRule = new LinkedHashMap<>();
-        for (MssSuspicion s : suspicions) {
+        for (MifSuspicion s : suspicions) {
             String key = s.getRuleName() == null ? "未知规则" : s.getRuleName();
             SuperviseStatsVO.RuleDistVO v = byRule.computeIfAbsent(key, k -> {
                 SuperviseStatsVO.RuleDistVO d = new SuperviseStatsVO.RuleDistVO();
@@ -98,9 +98,9 @@ public class SuperviseStatsServiceImpl implements SuperviseStatsService {
         return list.size() > 8 ? list.subList(0, 8) : list;
     }
 
-    private List<SuperviseStatsVO.TrendPointVO> trend(List<MssSuspicion> suspicions) {
+    private List<SuperviseStatsVO.TrendPointVO> trend(List<MifSuspicion> suspicions) {
         Map<LocalDate, SuperviseStatsVO.TrendPointVO> byDay = new LinkedHashMap<>();
-        for (MssSuspicion s : suspicions) {
+        for (MifSuspicion s : suspicions) {
             LocalDate day = s.getCreateTime() == null ? LocalDate.now() : s.getCreateTime().toLocalDate();
             SuperviseStatsVO.TrendPointVO p = byDay.computeIfAbsent(day, k -> {
                 SuperviseStatsVO.TrendPointVO t = new SuperviseStatsVO.TrendPointVO();

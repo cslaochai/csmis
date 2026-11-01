@@ -5,8 +5,8 @@ import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.mis.common.base.PageVO;
 import com.mis.dto.FilingQueryDTO;
 import com.mis.dto.FilingUpsertDTO;
-import com.mis.entity.MssFiling;
-import com.mis.mapper.MssFilingMapper;
+import com.mis.entity.MisFiling;
+import com.mis.mapper.MisFilingMapper;
 import com.mis.service.FilingService;
 import com.mis.vo.ActionVO;
 import com.mis.vo.FilingVO;
@@ -22,24 +22,24 @@ import java.util.stream.Collectors;
 @RequiredArgsConstructor
 public class FilingServiceImpl implements FilingService {
 
-    private final MssFilingMapper filingMapper;
+    private final MisFilingMapper filingMapper;
 
     @Override
     public PageVO<FilingVO> filingPage(FilingQueryDTO q) {
-        Page<MssFiling> page = new Page<>(q.getPage(), q.getSize());
-        LambdaQueryWrapper<MssFiling> w = new LambdaQueryWrapper<>();
+        Page<MisFiling> page = new Page<>(q.getPage(), q.getSize());
+        LambdaQueryWrapper<MisFiling> w = new LambdaQueryWrapper<>();
         if (hasText(q.getKeyword())) {
             String kw = q.getKeyword().trim();
-            w.and(x -> x.like(MssFiling::getName, kw)
-                    .or().like(MssFiling::getInsuranceArea, kw)
-                    .or().like(MssFiling::getFromArea, kw)
-                    .or().like(MssFiling::getHospital, kw));
+            w.and(x -> x.like(MisFiling::getName, kw)
+                    .or().like(MisFiling::getInsuranceArea, kw)
+                    .or().like(MisFiling::getFromArea, kw)
+                    .or().like(MisFiling::getHospital, kw));
         }
         if (hasText(q.getStatus())) {
-            w.eq(MssFiling::getStatus, q.getStatus());
+            w.eq(MisFiling::getStatus, q.getStatus());
         }
-        w.orderByDesc(MssFiling::getId);
-        Page<MssFiling> res = filingMapper.selectPage(page, w);
+        w.orderByDesc(MisFiling::getId);
+        Page<MisFiling> res = filingMapper.selectPage(page, w);
         List<FilingVO> vos = res.getRecords().stream().map(f -> {
             FilingVO vo = new FilingVO();
             BeanUtils.copyProperties(f, vo);
@@ -50,9 +50,9 @@ public class FilingServiceImpl implements FilingService {
 
     @Override
     public ActionVO upsert(FilingUpsertDTO dto) {
-        MssFiling f;
+        MisFiling f;
         if (dto.getId() == null) {
-            f = new MssFiling();
+            f = new MisFiling();
             f.setStatus("审核中");
             f.setApplyTime(LocalDate.now());
         } else {
@@ -79,7 +79,7 @@ public class FilingServiceImpl implements FilingService {
 
     @Override
     public ActionVO revoke(Long id) {
-        MssFiling f = filingMapper.selectById(id);
+        MisFiling f = filingMapper.selectById(id);
         if (f == null) {
             return ActionVO.fail("备案记录不存在");
         }

@@ -8,14 +8,14 @@ import com.mis.config.LoginUser;
 import com.mis.config.UserContext;
 import com.mis.dto.PostItemDTO;
 import com.mis.dto.PostReplaceDTO;
-import com.mis.entity.MssDepartment;
-import com.mis.entity.MssEmployee;
-import com.mis.entity.MssEmployeePost;
-import com.mis.entity.MssRole;
-import com.mis.mapper.MssDepartmentMapper;
-import com.mis.mapper.MssEmployeeMapper;
-import com.mis.mapper.MssEmployeePostMapper;
-import com.mis.mapper.MssRoleMapper;
+import com.mis.entity.SysDepartment;
+import com.mis.entity.SysEmployee;
+import com.mis.entity.SysEmployeePost;
+import com.mis.entity.SysRole;
+import com.mis.mapper.SysDepartmentMapper;
+import com.mis.mapper.SysEmployeeMapper;
+import com.mis.mapper.SysEmployeePostMapper;
+import com.mis.mapper.SysRoleMapper;
 import com.mis.service.SystemPostService;
 import com.mis.vo.EmployeeSelectVO;
 import com.mis.vo.PostVO;
@@ -35,47 +35,47 @@ import java.util.stream.Collectors;
 @RequiredArgsConstructor
 public class SystemPostServiceImpl implements SystemPostService {
 
-    private final MssEmployeePostMapper employeePostMapper;
-    private final MssEmployeeMapper employeeMapper;
-    private final MssRoleMapper roleMapper;
-    private final MssDepartmentMapper departmentMapper;
+    private final SysEmployeePostMapper employeePostMapper;
+    private final SysEmployeeMapper employeeMapper;
+    private final SysRoleMapper roleMapper;
+    private final SysDepartmentMapper departmentMapper;
 
     @Override
     public PageResult<PostVO> page(String keyword, long pageNum, long pageSize) {
         List<Long> empIds = null;
         if (keyword != null && !keyword.isEmpty()) {
-            empIds = employeeMapper.selectList(new LambdaQueryWrapper<MssEmployee>()
-                            .like(MssEmployee::getEmpName, keyword)
+            empIds = employeeMapper.selectList(new LambdaQueryWrapper<SysEmployee>()
+                            .like(SysEmployee::getEmpName, keyword)
                             .or()
-                            .like(MssEmployee::getEmpCode, keyword))
-                    .stream().map(MssEmployee::getId).collect(Collectors.toList());
+                            .like(SysEmployee::getEmpCode, keyword))
+                    .stream().map(SysEmployee::getId).collect(Collectors.toList());
             if (empIds.isEmpty()) {
                 return PageResult.of(0, pageNum, pageSize, 0, new ArrayList<>());
             }
         }
-        Page<MssEmployeePost> page = employeePostMapper.selectPage(new Page<>(pageNum, pageSize),
-                new LambdaQueryWrapper<MssEmployeePost>()
-                        .in(empIds != null && !empIds.isEmpty(), MssEmployeePost::getEmployeeId, empIds)
-                        .orderByAsc(MssEmployeePost::getEmployeeId)
-                        .orderByDesc(MssEmployeePost::getIsPrimary)
-                        .orderByAsc(MssEmployeePost::getId));
+        Page<SysEmployeePost> page = employeePostMapper.selectPage(new Page<>(pageNum, pageSize),
+                new LambdaQueryWrapper<SysEmployeePost>()
+                        .in(empIds != null && !empIds.isEmpty(), SysEmployeePost::getEmployeeId, empIds)
+                        .orderByAsc(SysEmployeePost::getEmployeeId)
+                        .orderByDesc(SysEmployeePost::getIsPrimary)
+                        .orderByAsc(SysEmployeePost::getId));
         return PageResult.of(page.getTotal(), page.getCurrent(), page.getSize(), page.getPages(),
                 page.getRecords().stream().map(this::toVO).collect(Collectors.toList()));
     }
 
     @Override
     public List<PostVO> postsOfEmployee(Long employeeId) {
-        List<MssEmployeePost> posts = employeePostMapper.selectList(new LambdaQueryWrapper<MssEmployeePost>()
-                .eq(MssEmployeePost::getEmployeeId, employeeId)
-                .orderByDesc(MssEmployeePost::getIsPrimary)
-                .orderByAsc(MssEmployeePost::getId));
+        List<SysEmployeePost> posts = employeePostMapper.selectList(new LambdaQueryWrapper<SysEmployeePost>()
+                .eq(SysEmployeePost::getEmployeeId, employeeId)
+                .orderByDesc(SysEmployeePost::getIsPrimary)
+                .orderByAsc(SysEmployeePost::getId));
         return posts.stream().map(this::toVO).collect(Collectors.toList());
     }
 
     @Override
     @Transactional(rollbackFor = Exception.class)
     public void replacePosts(PostReplaceDTO dto) {
-        MssEmployee employee = employeeMapper.selectById(dto.getEmployeeId());
+        SysEmployee employee = employeeMapper.selectById(dto.getEmployeeId());
         if (employee == null) {
             throw new BusinessException("员工不存在");
         }
@@ -86,8 +86,8 @@ public class SystemPostServiceImpl implements SystemPostService {
     @Transactional(rollbackFor = Exception.class)
     public void replacePostsOfEmployee(Long employeeId, List<PostItemDTO> posts, String operator) {
         // 本表无 del_flag：先物理删旧行再插入，避免占用唯一键
-        employeePostMapper.delete(new LambdaQueryWrapper<MssEmployeePost>()
-                .eq(MssEmployeePost::getEmployeeId, employeeId));
+        employeePostMapper.delete(new LambdaQueryWrapper<SysEmployeePost>()
+                .eq(SysEmployeePost::getEmployeeId, employeeId));
 
         if (posts == null || posts.isEmpty()) {
             return;
@@ -100,7 +100,7 @@ public class SystemPostServiceImpl implements SystemPostService {
             if (roleId == null || item.getDeptId() == null) {
                 continue;
             }
-            MssEmployeePost post = new MssEmployeePost();
+            SysEmployeePost post = new SysEmployeePost();
             post.setEmployeeId(employeeId);
             post.setRoleId(roleId);
             post.setDeptId(item.getDeptId());
@@ -117,8 +117,8 @@ public class SystemPostServiceImpl implements SystemPostService {
     /** roleCode 优先（HIS 口径），否则回退 roleId */
     private Long resolveRoleId(PostItemDTO item) {
         if (item.getRoleCode() != null && !item.getRoleCode().isEmpty()) {
-            MssRole role = roleMapper.selectOne(new LambdaQueryWrapper<MssRole>()
-                    .eq(MssRole::getRoleCode, item.getRoleCode())
+            SysRole role = roleMapper.selectOne(new LambdaQueryWrapper<SysRole>()
+                    .eq(SysRole::getRoleCode, item.getRoleCode())
                     .last("LIMIT 1"));
             return role == null ? null : role.getId();
         }
@@ -127,13 +127,13 @@ public class SystemPostServiceImpl implements SystemPostService {
 
     @Override
     public List<EmployeeSelectVO> employeeSelect(String keyword) {
-        return employeeMapper.selectList(new LambdaQueryWrapper<MssEmployee>()
-                        .eq(MssEmployee::getStatus, 1)
+        return employeeMapper.selectList(new LambdaQueryWrapper<SysEmployee>()
+                        .eq(SysEmployee::getStatus, 1)
                         .and(keyword != null && !keyword.isEmpty(), w -> w
-                                .like(MssEmployee::getEmpName, keyword)
+                                .like(SysEmployee::getEmpName, keyword)
                                 .or()
-                                .like(MssEmployee::getEmpCode, keyword))
-                        .orderByAsc(MssEmployee::getId)
+                                .like(SysEmployee::getEmpCode, keyword))
+                        .orderByAsc(SysEmployee::getId)
                         .last("LIMIT 50"))
                 .stream().map(e -> {
                     EmployeeSelectVO vo = new EmployeeSelectVO();
@@ -149,7 +149,7 @@ public class SystemPostServiceImpl implements SystemPostService {
 
     // ------------------------------------------------------------ 内部工具
 
-    private PostVO toVO(MssEmployeePost post) {
+    private PostVO toVO(SysEmployeePost post) {
         PostVO vo = new PostVO();
         vo.setId(post.getId());
         vo.setEmployeeId(post.getEmployeeId());
@@ -159,17 +159,17 @@ public class SystemPostServiceImpl implements SystemPostService {
         vo.setEffectiveDate(post.getEffectiveDate());
         vo.setExpireDate(post.getExpireDate());
 
-        MssEmployee emp = employeeMapper.selectById(post.getEmployeeId());
+        SysEmployee emp = employeeMapper.selectById(post.getEmployeeId());
         if (emp != null) {
             vo.setEmpCode(emp.getEmpCode());
             vo.setEmpName(emp.getEmpName());
         }
-        MssRole role = roleMapper.selectById(post.getRoleId());
+        SysRole role = roleMapper.selectById(post.getRoleId());
         if (role != null) {
             vo.setRoleCode(role.getRoleCode());
             vo.setRoleName(role.getRoleName());
         }
-        MssDepartment dept = departmentMapper.selectById(post.getDeptId());
+        SysDepartment dept = departmentMapper.selectById(post.getDeptId());
         if (dept != null) {
             vo.setDeptName(dept.getDeptName());
         }

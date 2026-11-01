@@ -25,6 +25,8 @@ public class InsuredPersonVO implements Serializable {
     private String insuranceType;
     /** 参保状态（1-正常参保 0-停保） */
     private Integer personStatus;
+    /** 停保/恢复原因留痕 */
+    private String statusRemark;
     private BigDecimal accountBalance;
     private String region;
     @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss")

@@ -8,6 +8,7 @@
             <el-select v-model="q.sourceType" placeholder="来源类型" clearable style="width:100%">
               <el-option label="疑点稽核" :value="1" />
               <el-option label="飞检" :value="2" />
+              <el-option label="反欺诈线索" :value="3" />
             </el-select>
           </div>
           <div class="q-item">
@@ -33,7 +34,7 @@
       <el-table :data="list" size="small" v-loading="loading">
         <el-table-column prop="recoverNo" label="追回单号" width="170" />
         <el-table-column label="来源" width="100" align="center">
-          <template #default="{ row }">{{ row.sourceType === 2 ? '飞检' : '疑点稽核' }}</template>
+          <template #default="{ row }">{{ { 1: '疑点稽核', 2: '飞检', 3: '反欺诈线索' }[row.sourceType] || '疑点稽核' }}</template>
         </el-table-column>
         <el-table-column prop="sourceNo" label="来源单号" width="170" show-overflow-tooltip />
         <el-table-column prop="targetOrgName" label="定点机构" min-width="150" show-overflow-tooltip />

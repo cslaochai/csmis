@@ -5,8 +5,8 @@ import com.mis.common.exception.BusinessException;
 import com.mis.config.LoginUser;
 import com.mis.config.UserContext;
 import com.mis.dto.DepartmentUpsertDTO;
-import com.mis.entity.MssDepartment;
-import com.mis.mapper.MssDepartmentMapper;
+import com.mis.entity.SysDepartment;
+import com.mis.mapper.SysDepartmentMapper;
 import com.mis.service.SystemDeptService;
 import com.mis.vo.DepartmentVO;
 import lombok.RequiredArgsConstructor;
@@ -24,22 +24,22 @@ import java.util.stream.Collectors;
 @RequiredArgsConstructor
 public class SystemDeptServiceImpl implements SystemDeptService {
 
-    private final MssDepartmentMapper departmentMapper;
+    private final SysDepartmentMapper departmentMapper;
 
     @Override
     public List<DepartmentVO> selectList() {
-        return departmentMapper.selectList(new LambdaQueryWrapper<MssDepartment>()
-                        .eq(MssDepartment::getStatus, 1)
-                        .orderByAsc(MssDepartment::getSortOrder)
-                        .orderByAsc(MssDepartment::getId))
+        return departmentMapper.selectList(new LambdaQueryWrapper<SysDepartment>()
+                        .eq(SysDepartment::getStatus, 1)
+                        .orderByAsc(SysDepartment::getSortOrder)
+                        .orderByAsc(SysDepartment::getId))
                 .stream().map(this::toVO).collect(Collectors.toList());
     }
 
     @Override
     public List<DepartmentVO> tree() {
-        List<MssDepartment> all = departmentMapper.selectList(new LambdaQueryWrapper<MssDepartment>()
-                .orderByAsc(MssDepartment::getSortOrder)
-                .orderByAsc(MssDepartment::getId));
+        List<SysDepartment> all = departmentMapper.selectList(new LambdaQueryWrapper<SysDepartment>()
+                .orderByAsc(SysDepartment::getSortOrder)
+                .orderByAsc(SysDepartment::getId));
         List<DepartmentVO> roots = all.stream()
                 .filter(d -> d.getParentId() == null || d.getParentId() == 0)
                 .map(this::toVO)
@@ -50,7 +50,7 @@ public class SystemDeptServiceImpl implements SystemDeptService {
         return roots;
     }
 
-    private void fillChildren(DepartmentVO parent, List<MssDepartment> all) {
+    private void fillChildren(DepartmentVO parent, List<SysDepartment> all) {
         List<DepartmentVO> children = all.stream()
                 .filter(d -> Objects.equals(d.getParentId(), parent.getId()))
                 .map(this::toVO)
@@ -72,7 +72,7 @@ public class SystemDeptServiceImpl implements SystemDeptService {
 
     @Override
     public DepartmentVO getById(Long id) {
-        MssDepartment dept = departmentMapper.selectById(id);
+        SysDepartment dept = departmentMapper.selectById(id);
         if (dept == null) {
             throw new BusinessException("部门不存在");
         }
@@ -81,7 +81,7 @@ public class SystemDeptServiceImpl implements SystemDeptService {
 
     @Override
     public DepartmentVO upsert(DepartmentUpsertDTO dto) {
-        MssDepartment dept = new MssDepartment();
+        SysDepartment dept = new SysDepartment();
         BeanUtils.copyProperties(dto, dept);
         String operator = operatorName();
 
@@ -93,7 +93,7 @@ public class SystemDeptServiceImpl implements SystemDeptService {
             dept.setCreateBy(operator);
             departmentMapper.insert(dept);
         } else {
-            MssDepartment exist = departmentMapper.selectById(dto.getId());
+            SysDepartment exist = departmentMapper.selectById(dto.getId());
             if (exist == null) {
                 throw new BusinessException("部门不存在");
             }
@@ -104,7 +104,7 @@ public class SystemDeptServiceImpl implements SystemDeptService {
         return toVO(dept);
     }
 
-    private DepartmentVO toVO(MssDepartment dept) {
+    private DepartmentVO toVO(SysDepartment dept) {
         DepartmentVO vo = new DepartmentVO();
         BeanUtils.copyProperties(dept, vo);
         return vo;
@@ -112,12 +112,12 @@ public class SystemDeptServiceImpl implements SystemDeptService {
 
     @Override
     public void deleteById(Long id) {
-        MssDepartment dept = departmentMapper.selectById(id);
+        SysDepartment dept = departmentMapper.selectById(id);
         if (dept == null) {
             throw new BusinessException("部门不存在");
         }
-        Long childCount = departmentMapper.selectCount(new LambdaQueryWrapper<MssDepartment>()
-                .eq(MssDepartment::getParentId, id));
+        Long childCount = departmentMapper.selectCount(new LambdaQueryWrapper<SysDepartment>()
+                .eq(SysDepartment::getParentId, id));
         if (childCount != null && childCount > 0) {
             throw new BusinessException("该部门下有子部门，不能删除");
         }
@@ -129,8 +129,8 @@ public class SystemDeptServiceImpl implements SystemDeptService {
         String code;
         do {
             code = String.format("%04d", ++max);
-        } while (departmentMapper.selectCount(new LambdaQueryWrapper<MssDepartment>()
-                .eq(MssDepartment::getDeptCode, code)) > 0);
+        } while (departmentMapper.selectCount(new LambdaQueryWrapper<SysDepartment>()
+                .eq(SysDepartment::getDeptCode, code)) > 0);
         return code;
     }
 

@@ -10,14 +10,14 @@ import com.mis.dto.EmployeeQueryPageDTO;
 import com.mis.dto.EmployeeUpsertDTO;
 import com.mis.dto.PostItemDTO;
 import com.mis.dto.QualificationBatchUpsertDTO;
-import com.mis.entity.MssDepartment;
-import com.mis.entity.MssEmployee;
-import com.mis.entity.MssEmployeePost;
-import com.mis.entity.MssEmployeeQualification;
-import com.mis.mapper.MssDepartmentMapper;
-import com.mis.mapper.MssEmployeeMapper;
-import com.mis.mapper.MssEmployeePostMapper;
-import com.mis.mapper.MssEmployeeQualificationMapper;
+import com.mis.entity.SysDepartment;
+import com.mis.entity.SysEmployee;
+import com.mis.entity.SysEmployeePost;
+import com.mis.entity.SysEmployeeQualification;
+import com.mis.mapper.SysDepartmentMapper;
+import com.mis.mapper.SysEmployeeMapper;
+import com.mis.mapper.SysEmployeePostMapper;
+import com.mis.mapper.SysEmployeeQualificationMapper;
 import com.mis.service.SystemEmployeeService;
 import com.mis.service.SystemPostService;
 import com.mis.vo.EmployeeVO;
@@ -41,20 +41,20 @@ import java.util.stream.Collectors;
 @RequiredArgsConstructor
 public class SystemEmployeeServiceImpl implements SystemEmployeeService {
 
-    private final MssEmployeeMapper employeeMapper;
-    private final MssEmployeePostMapper employeePostMapper;
-    private final MssEmployeeQualificationMapper qualificationMapper;
-    private final MssDepartmentMapper departmentMapper;
+    private final SysEmployeeMapper employeeMapper;
+    private final SysEmployeePostMapper employeePostMapper;
+    private final SysEmployeeQualificationMapper qualificationMapper;
+    private final SysDepartmentMapper departmentMapper;
     private final SystemPostService postService;
 
     @Override
     public PageResult<EmployeeVO> page(EmployeeQueryPageDTO dto) {
-        Page<MssEmployee> page = employeeMapper.selectPage(new Page<>(dto.getPage(), dto.getSize()),
-                new LambdaQueryWrapper<MssEmployee>()
+        Page<SysEmployee> page = employeeMapper.selectPage(new Page<>(dto.getPage(), dto.getSize()),
+                new LambdaQueryWrapper<SysEmployee>()
                         .like(dto.getEmpName() != null && !dto.getEmpName().isEmpty(),
-                                MssEmployee::getEmpName, dto.getEmpName())
-                        .eq(dto.getStatus() != null, MssEmployee::getStatus, dto.getStatus())
-                        .orderByDesc(MssEmployee::getCreateTime));
+                                SysEmployee::getEmpName, dto.getEmpName())
+                        .eq(dto.getStatus() != null, SysEmployee::getStatus, dto.getStatus())
+                        .orderByDesc(SysEmployee::getCreateTime));
 
         List<EmployeeVO> vos = page.getRecords().stream().map(this::toListVO).collect(Collectors.toList());
         return PageResult.of(page.getTotal(), page.getCurrent(), page.getSize(), page.getPages(), vos);
@@ -62,7 +62,7 @@ public class SystemEmployeeServiceImpl implements SystemEmployeeService {
 
     @Override
     public EmployeeVO detail(Long id) {
-        MssEmployee emp = employeeMapper.selectById(id);
+        SysEmployee emp = employeeMapper.selectById(id);
         if (emp == null) {
             throw new BusinessException("员工不存在");
         }
@@ -76,7 +76,7 @@ public class SystemEmployeeServiceImpl implements SystemEmployeeService {
     @Transactional(rollbackFor = Exception.class)
     public EmployeeVO upsert(EmployeeUpsertDTO dto) {
         String operator = operatorName();
-        MssEmployee emp = new MssEmployee();
+        SysEmployee emp = new SysEmployee();
         BeanUtils.copyProperties(dto, emp);
         // 工号不可由前端提交（HIS 口径：系统自动生成）
         emp.setEmpCode(null);
@@ -86,7 +86,7 @@ public class SystemEmployeeServiceImpl implements SystemEmployeeService {
             emp.setCreateBy(operator);
             employeeMapper.insert(emp);
         } else {
-            MssEmployee exist = employeeMapper.selectById(dto.getId());
+            SysEmployee exist = employeeMapper.selectById(dto.getId());
             if (exist == null) {
                 throw new BusinessException("员工不存在");
             }
@@ -98,7 +98,7 @@ public class SystemEmployeeServiceImpl implements SystemEmployeeService {
         // 主岗位科室回写 dept_id / dept_name 快照（HIS：员工主科室 = 人事主科室）
         Long primaryDeptId = primaryDeptId(dto.getPosts());
         if (primaryDeptId != null) {
-            MssEmployee deptUpdate = new MssEmployee();
+            SysEmployee deptUpdate = new SysEmployee();
             deptUpdate.setId(emp.getId());
             deptUpdate.setDeptId(primaryDeptId);
             deptUpdate.setDeptName(deptNameOf(primaryDeptId));
@@ -114,7 +114,7 @@ public class SystemEmployeeServiceImpl implements SystemEmployeeService {
 
     @Override
     public void deleteById(Long id) {
-        MssEmployee emp = employeeMapper.selectById(id);
+        SysEmployee emp = employeeMapper.selectById(id);
         if (emp == null) {
             throw new BusinessException("员工不存在");
         }
@@ -123,9 +123,9 @@ public class SystemEmployeeServiceImpl implements SystemEmployeeService {
 
     @Override
     public List<QualificationVO> qualificationList(Long employeeId) {
-        return qualificationMapper.selectList(new LambdaQueryWrapper<MssEmployeeQualification>()
-                        .eq(MssEmployeeQualification::getEmployeeId, employeeId)
-                        .orderByAsc(MssEmployeeQualification::getId))
+        return qualificationMapper.selectList(new LambdaQueryWrapper<SysEmployeeQualification>()
+                        .eq(SysEmployeeQualification::getEmployeeId, employeeId)
+                        .orderByAsc(SysEmployeeQualification::getId))
                 .stream().map(q -> {
                     QualificationVO vo = new QualificationVO();
                     BeanUtils.copyProperties(q, vo);
@@ -141,7 +141,7 @@ public class SystemEmployeeServiceImpl implements SystemEmployeeService {
             return;
         }
         for (QualificationBatchUpsertDTO.QualificationItemDTO item : dto.getItems()) {
-            MssEmployeeQualification row = new MssEmployeeQualification();
+            SysEmployeeQualification row = new SysEmployeeQualification();
             row.setEmployeeId(dto.getEmployeeId());
             row.setCertType(item.getCertType());
             row.setCertNo(item.getCertNo());
@@ -164,7 +164,7 @@ public class SystemEmployeeServiceImpl implements SystemEmployeeService {
 
     @Override
     public void qualificationDelete(Long id) {
-        MssEmployeeQualification row = qualificationMapper.selectById(id);
+        SysEmployeeQualification row = qualificationMapper.selectById(id);
         if (row == null) {
             throw new BusinessException("证书不存在");
         }
@@ -174,7 +174,7 @@ public class SystemEmployeeServiceImpl implements SystemEmployeeService {
     // ------------------------------------------------------------ 内部工具
 
     /** 列表出参：身份证打码（前4后4，中间星号），详情接口不走这里 */
-    private EmployeeVO toListVO(MssEmployee emp) {
+    private EmployeeVO toListVO(SysEmployee emp) {
         EmployeeVO vo = toVO(emp);
         if (vo.getIdCard() != null && vo.getIdCard().length() >= 8) {
             String id = vo.getIdCard();
@@ -185,7 +185,7 @@ public class SystemEmployeeServiceImpl implements SystemEmployeeService {
         return vo;
     }
 
-    private EmployeeVO toVO(MssEmployee emp) {
+    private EmployeeVO toVO(SysEmployee emp) {
         EmployeeVO vo = new EmployeeVO();
         BeanUtils.copyProperties(emp, vo);
         vo.setDeptNames(deptNamesOf(emp.getId()));
@@ -197,10 +197,10 @@ public class SystemEmployeeServiceImpl implements SystemEmployeeService {
         if (employeeId == null) {
             return new ArrayList<>();
         }
-        return employeePostMapper.selectList(new LambdaQueryWrapper<MssEmployeePost>()
-                        .eq(MssEmployeePost::getEmployeeId, employeeId))
+        return employeePostMapper.selectList(new LambdaQueryWrapper<SysEmployeePost>()
+                        .eq(SysEmployeePost::getEmployeeId, employeeId))
                 .stream()
-                .map(MssEmployeePost::getDeptId)
+                .map(SysEmployeePost::getDeptId)
                 .filter(Objects::nonNull)
                 .distinct()
                 .map(this::deptNameOf)
@@ -229,7 +229,7 @@ public class SystemEmployeeServiceImpl implements SystemEmployeeService {
 
     private String deptNameOf(Long deptId) {
         if (deptId == null) return null;
-        MssDepartment dept = departmentMapper.selectById(deptId);
+        SysDepartment dept = departmentMapper.selectById(deptId);
         return dept == null ? null : dept.getDeptName();
     }
 
@@ -238,8 +238,8 @@ public class SystemEmployeeServiceImpl implements SystemEmployeeService {
         String code;
         do {
             code = "EMP" + String.format("%04d", ++max);
-        } while (employeeMapper.selectCount(new LambdaQueryWrapper<MssEmployee>()
-                .eq(MssEmployee::getEmpCode, code)) > 0);
+        } while (employeeMapper.selectCount(new LambdaQueryWrapper<SysEmployee>()
+                .eq(SysEmployee::getEmpCode, code)) > 0);
         return code;
     }
 

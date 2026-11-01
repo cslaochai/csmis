@@ -6,8 +6,8 @@ import com.mis.common.base.PageVO;
 import com.mis.config.UserContext;
 import com.mis.dto.RecoverHandleDTO;
 import com.mis.dto.RecoverQueryDTO;
-import com.mis.entity.MssRecover;
-import com.mis.mapper.MssRecoverMapper;
+import com.mis.entity.MifRecover;
+import com.mis.mapper.MifRecoverMapper;
 import com.mis.service.RecoverService;
 import com.mis.vo.ActionVO;
 import com.mis.vo.RecoverVO;
@@ -23,37 +23,37 @@ import java.util.stream.Collectors;
 @RequiredArgsConstructor
 public class RecoverServiceImpl implements RecoverService {
 
-    private final MssRecoverMapper recoverMapper;
+    private final MifRecoverMapper recoverMapper;
 
     @Override
     public PageVO<RecoverVO> recoverPage(RecoverQueryDTO q) {
-        Page<MssRecover> page = new Page<>(q.getPage(), q.getSize());
-        LambdaQueryWrapper<MssRecover> w = new LambdaQueryWrapper<>();
+        Page<MifRecover> page = new Page<>(q.getPage(), q.getSize());
+        LambdaQueryWrapper<MifRecover> w = new LambdaQueryWrapper<>();
         if (hasText(q.getKeyword())) {
             String kw = q.getKeyword().trim();
-            w.and(x -> x.like(MssRecover::getRecoverNo, kw)
-                    .or().like(MssRecover::getSourceNo, kw)
-                    .or().like(MssRecover::getTargetOrgName, kw));
+            w.and(x -> x.like(MifRecover::getRecoverNo, kw)
+                    .or().like(MifRecover::getSourceNo, kw)
+                    .or().like(MifRecover::getTargetOrgName, kw));
         }
         if (q.getSourceType() != null) {
-            w.eq(MssRecover::getSourceType, q.getSourceType());
+            w.eq(MifRecover::getSourceType, q.getSourceType());
         }
         if (hasText(q.getStatus())) {
-            w.eq(MssRecover::getStatus, q.getStatus());
+            w.eq(MifRecover::getStatus, q.getStatus());
         }
-        w.orderByDesc(MssRecover::getId);
-        Page<MssRecover> res = recoverMapper.selectPage(page, w);
+        w.orderByDesc(MifRecover::getId);
+        Page<MifRecover> res = recoverMapper.selectPage(page, w);
         List<RecoverVO> vos = res.getRecords().stream().map(this::toVO).collect(Collectors.toList());
         return PageVO.of(vos, res.getTotal());
     }
 
     @Override
     public RecoverVO getDetail(Long id) {
-        MssRecover r = recoverMapper.selectById(id);
+        MifRecover r = recoverMapper.selectById(id);
         return r == null ? null : toVO(r);
     }
 
-    private RecoverVO toVO(MssRecover r) {
+    private RecoverVO toVO(MifRecover r) {
         RecoverVO vo = new RecoverVO();
         BeanUtils.copyProperties(r, vo);
         return vo;
@@ -61,7 +61,7 @@ public class RecoverServiceImpl implements RecoverService {
 
     @Override
     public ActionVO doRecover(RecoverHandleDTO dto) {
-        MssRecover r = recoverMapper.selectById(dto.getId());
+        MifRecover r = recoverMapper.selectById(dto.getId());
         if (r == null) {
             return ActionVO.fail("追回单不存在");
         }
@@ -78,7 +78,7 @@ public class RecoverServiceImpl implements RecoverService {
 
     @Override
     public ActionVO writeOff(RecoverHandleDTO dto) {
-        MssRecover r = recoverMapper.selectById(dto.getId());
+        MifRecover r = recoverMapper.selectById(dto.getId());
         if (r == null) {
             return ActionVO.fail("追回单不存在");
         }

@@ -6,10 +6,10 @@ import com.mis.common.base.PageVO;
 import com.mis.dto.CatalogQueryDTO;
 import com.mis.dto.MappingMapDTO;
 import com.mis.dto.MappingQueryDTO;
-import com.mis.entity.MssCatalog;
-import com.mis.entity.MssItemMapping;
-import com.mis.mapper.MssCatalogMapper;
-import com.mis.mapper.MssItemMappingMapper;
+import com.mis.entity.MisCatalog;
+import com.mis.entity.MisItemMapping;
+import com.mis.mapper.MisCatalogMapper;
+import com.mis.mapper.MisItemMappingMapper;
 import com.mis.service.CatalogService;
 import com.mis.vo.ActionVO;
 import com.mis.vo.CatalogStatsVO;
@@ -28,35 +28,35 @@ import java.util.Map;
 @RequiredArgsConstructor
 public class CatalogServiceImpl implements CatalogService {
 
-    private final MssCatalogMapper catalogMapper;
-    private final MssItemMappingMapper mappingMapper;
+    private final MisCatalogMapper catalogMapper;
+    private final MisItemMappingMapper mappingMapper;
 
     private static final List<String> CATEGORIES =
             List.of("西药", "中成药", "中草药", "诊疗项目", "医用耗材");
 
     @Override
     public PageVO<CatalogVO> catalogPage(CatalogQueryDTO q) {
-        Page<MssCatalog> page = new Page<>(q.getPage(), q.getSize());
-        LambdaQueryWrapper<MssCatalog> w = new LambdaQueryWrapper<>();
+        Page<MisCatalog> page = new Page<>(q.getPage(), q.getSize());
+        LambdaQueryWrapper<MisCatalog> w = new LambdaQueryWrapper<>();
         if (hasText(q.getKeyword())) {
             String kw = q.getKeyword().trim();
-            w.and(x -> x.like(MssCatalog::getName, kw).or().like(MssCatalog::getYbCode, kw));
+            w.and(x -> x.like(MisCatalog::getName, kw).or().like(MisCatalog::getYbCode, kw));
         }
         if (hasText(q.getCategory())) {
-            w.eq(MssCatalog::getCategory, q.getCategory());
+            w.eq(MisCatalog::getCategory, q.getCategory());
         }
         if (hasText(q.getPayClass())) {
-            w.eq(MssCatalog::getPayClass, q.getPayClass());
+            w.eq(MisCatalog::getPayClass, q.getPayClass());
         }
-        w.orderByAsc(MssCatalog::getId);
-        Page<MssCatalog> res = catalogMapper.selectPage(page, w);
+        w.orderByAsc(MisCatalog::getId);
+        Page<MisCatalog> res = catalogMapper.selectPage(page, w);
         List<CatalogVO> vos = res.getRecords().stream().map(this::toCatalogVO).collect(java.util.stream.Collectors.toList());
         return PageVO.of(vos, res.getTotal());
     }
 
     @Override
     public CatalogStatsVO catalogStats() {
-        List<MssCatalog> all = catalogMapper.selectList(null);
+        List<MisCatalog> all = catalogMapper.selectList(null);
         Map<String, Long> byCat = new LinkedHashMap<>();
         CATEGORIES.forEach(c -> byCat.put(c, 0L));
         Map<String, Long> byClass = new LinkedHashMap<>();
@@ -64,7 +64,7 @@ public class CatalogServiceImpl implements CatalogService {
         byClass.put("乙", 0L);
         byClass.put("丙", 0L);
         long disabled = 0;
-        for (MssCatalog c : all) {
+        for (MisCatalog c : all) {
             byCat.merge(c.getCategory(), 1L, Long::sum);
             if (c.getPayClass() != null) {
                 byClass.merge(c.getPayClass(), 1L, Long::sum);
@@ -83,16 +83,16 @@ public class CatalogServiceImpl implements CatalogService {
 
     @Override
     public PageVO<ItemMappingVO> mappingPage(MappingQueryDTO q) {
-        Page<MssItemMapping> page = new Page<>(q.getPage(), q.getSize());
-        LambdaQueryWrapper<MssItemMapping> w = new LambdaQueryWrapper<>();
+        Page<MisItemMapping> page = new Page<>(q.getPage(), q.getSize());
+        LambdaQueryWrapper<MisItemMapping> w = new LambdaQueryWrapper<>();
         if (hasText(q.getKeyword())) {
-            w.like(MssItemMapping::getHospItemName, q.getKeyword().trim());
+            w.like(MisItemMapping::getHospItemName, q.getKeyword().trim());
         }
         if (q.getMapped() != null) {
-            w.eq(MssItemMapping::getMapped, q.getMapped());
+            w.eq(MisItemMapping::getMapped, q.getMapped());
         }
-        w.orderByAsc(MssItemMapping::getId);
-        Page<MssItemMapping> res = mappingMapper.selectPage(page, w);
+        w.orderByAsc(MisItemMapping::getId);
+        Page<MisItemMapping> res = mappingMapper.selectPage(page, w);
         List<ItemMappingVO> vos = res.getRecords().stream().map(this::toItemMappingVO)
                 .collect(java.util.stream.Collectors.toList());
         return PageVO.of(vos, res.getTotal());
@@ -103,7 +103,7 @@ public class CatalogServiceImpl implements CatalogService {
         if (dto.getId() == null) {
             return ActionVO.fail("缺少对照记录id");
         }
-        MssItemMapping m = mappingMapper.selectById(dto.getId());
+        MisItemMapping m = mappingMapper.selectById(dto.getId());
         if (m == null) {
             return ActionVO.fail("对照记录不存在");
         }
@@ -118,7 +118,7 @@ public class CatalogServiceImpl implements CatalogService {
 
     @Override
     public ActionVO unmap(Long id) {
-        MssItemMapping m = mappingMapper.selectById(id);
+        MisItemMapping m = mappingMapper.selectById(id);
         if (m == null) {
             return ActionVO.fail("对照记录不存在");
         }
@@ -133,17 +133,17 @@ public class CatalogServiceImpl implements CatalogService {
 
     @Override
     public ActionVO autoMatch() {
-        List<MssCatalog> catalog = catalogMapper.selectList(null);
-        List<MssItemMapping> mappings = mappingMapper.selectList(null);
+        List<MisCatalog> catalog = catalogMapper.selectList(null);
+        List<MisItemMapping> mappings = mappingMapper.selectList(null);
         int n = 0;
-        for (MssItemMapping m : mappings) {
+        for (MisItemMapping m : mappings) {
             if (Boolean.TRUE.equals(m.getMapped())) {
                 continue;
             }
             String hospHead = m.getHospItemName() == null ? "" : m.getHospItemName();
             String head = hospHead.length() >= 2 ? hospHead.substring(0, 2) : hospHead;
-            MssCatalog hit = null;
-            for (MssCatalog c : catalog) {
+            MisCatalog hit = null;
+            for (MisCatalog c : catalog) {
                 String name = c.getName() == null ? "" : c.getName();
                 String cHead = name.length() >= 2 ? name.substring(0, 2) : name;
                 if (name.contains(head) || hospHead.contains(cHead)) {
@@ -164,13 +164,13 @@ public class CatalogServiceImpl implements CatalogService {
         return ActionVO.matched(n);
     }
 
-    private CatalogVO toCatalogVO(MssCatalog c) {
+    private CatalogVO toCatalogVO(MisCatalog c) {
         CatalogVO vo = new CatalogVO();
         BeanUtils.copyProperties(c, vo);
         return vo;
     }
 
-    private ItemMappingVO toItemMappingVO(MssItemMapping m) {
+    private ItemMappingVO toItemMappingVO(MisItemMapping m) {
         ItemMappingVO vo = new ItemMappingVO();
         BeanUtils.copyProperties(m, vo);
         return vo;

@@ -8,6 +8,8 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.MediaType;
+import org.springframework.core.Ordered;
+import org.springframework.core.annotation.Order;
 import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
 
@@ -22,6 +24,8 @@ import java.nio.charset.StandardCharsets;
  * <p>机构 2304/2305 报盘与参保查询属 HIS 侧联调接口，不走登录态，放行。
  */
 @Component
+// 认证必须在最外层：先解析 token 写入 UserContext，业务过滤器（如操作日志）才能读到操作人
+@Order(Ordered.HIGHEST_PRECEDENCE + 10)
 @RequiredArgsConstructor
 public class AuthFilter extends OncePerRequestFilter {
 

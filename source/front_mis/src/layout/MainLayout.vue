@@ -13,9 +13,10 @@
         </button>
         <nav class="breadcrumb-nav">
           <el-icon class="crumb-icon"><HomeFilled /></el-icon>
-          <span class="crumb-label">医保结算经办</span>
-          <el-icon v-if="pageTitle" class="crumb-sep"><ArrowRight /></el-icon>
-          <span v-if="pageTitle" class="crumb-current">{{ pageTitle }}</span>
+          <template v-for="(c, i) in breadcrumb" :key="i">
+            <span class="crumb-label">{{ c }}</span>
+            <el-icon v-if="i < breadcrumb.length - 1" class="crumb-sep"><ArrowRight /></el-icon>
+          </template>
         </nav>
       </div>
       <div class="header-right">
@@ -69,24 +70,7 @@
             class="!border-none app-menu"
           >
             <template v-for="menu in auth.menus" :key="menu.id">
-              <el-sub-menu v-if="menu.menuType === 1" :index="String(menu.id)">
-                <template #title>
-                  <el-icon v-if="menu.icon"><component :is="menu.icon" /></el-icon>
-                  <span>{{ menu.menuName }}</span>
-                </template>
-                <el-menu-item
-                  v-for="child in menu.children || []"
-                  :key="child.id"
-                  :index="child.path || '/'"
-                >
-                  <el-icon v-if="child.icon"><component :is="child.icon" /></el-icon>
-                  <span>{{ child.menuName }}</span>
-                </el-menu-item>
-              </el-sub-menu>
-              <el-menu-item v-else :index="menu.path || '/'">
-                <el-icon v-if="menu.icon"><component :is="menu.icon" /></el-icon>
-                <span>{{ menu.menuName }}</span>
-              </el-menu-item>
+              <MenuTreeNode :node="menu" :collapsed="sidebarCollapsed" />
             </template>
           </el-menu>
         </el-scrollbar>
@@ -127,6 +111,7 @@ import { changePasswordApi } from '@/api/auth'
 import { encryptPassword } from '@/lib/password'
 import { dashboardSummary } from '@/api/insurance'
 import BrandMark from '@/components/BrandMark.vue'
+import MenuTreeNode from '@/components/MenuTreeNode.vue'
 
 const route = useRoute()
 const router = useRouter()
@@ -134,6 +119,30 @@ const auth = useAuthStore()
 
 const activeMenu = computed(() => route.path)
 const pageTitle = computed(() => route.meta?.title || '医保结算经办平台')
+
+/**
+ * 面包屑：按当前路径在菜单树里回溯，产出「顶级域 › 业务分组 › 页面」。
+ * 找不到时退化为页面标题，避免出现空白面包屑。
+ */
+const breadcrumb = computed(() => {
+  const path = route.path
+  const trail = []
+  const walk = (nodes, parents) => {
+    for (const n of nodes || []) {
+      const next = [...parents, n.menuName]
+      if (n.path && n.path === path) {
+        trail.push(...next)
+        return true
+      }
+      if (walk(n.children, next)) return true
+    }
+    return false
+  }
+  if (!walk(auth.menus, [])) {
+    return [pageTitle.value]
+  }
+  return trail
+})
 const avatarChar = computed(() => (auth.realName || '用').slice(0, 1))
 
 // ========== 侧栏折叠（与 HIS 一致：按钮在顶栏，侧栏收成图标） ==========
@@ -411,6 +420,39 @@ async function onChangePassword() {
 /* 子菜单展开面板透出侧栏底色（#0A3D6B），避免 Element Plus 默认白底在深蓝侧栏里露白 */
 .app-menu :deep(.el-sub-menu .el-menu) {
   background: transparent;
+}
+
+/* ============ 三级菜单视觉层次 ============
+   顶级（业务域）→ 二级（业务分组）→ 三级（页面）
+   顶层最亮最粗，越往下的层级越淡，让用户一眼看清自己在哪一层。 */
+.app-menu :deep(.el-menu > .el-sub-menu > .el-sub-menu__title) {
+  font-weight: 600;
+  font-size: 14px;
+  color: rgba(255, 255, 255, 0.95);
+}
+
+.app-menu :deep(.el-menu > .el-sub-menu > .el-menu > .el-sub-menu > .el-sub-menu__title) {
+  font-weight: 500;
+  font-size: 13px;
+  color: rgba(255, 255, 255, 0.72);
+}
+
+/* 二级分组下的页面（第三层）最淡 */
+.app-menu :deep(.el-menu > .el-sub-menu > .el-menu > .el-sub-menu > .el-menu > .el-menu-item),
+.app-menu :deep(.el-menu > .el-sub-menu > .el-menu > .el-sub-menu > .el-menu > .el-menu-item .el-icon) {
+  font-size: 13px;
+  color: rgba(255, 255, 255, 0.62);
+}
+
+.app-menu :deep(.el-menu > .el-sub-menu > .el-menu > .el-sub-menu > .el-menu > .el-menu-item:hover) {
+  background: rgba(255, 255, 255, 0.08);
+  color: rgba(255, 255, 255, 0.92);
+}
+
+/* 当前激活页在三级时反白加粗 */
+.app-menu :deep(.el-menu > .el-sub-menu > .el-menu > .el-sub-menu > .el-menu > .el-menu-item.is-active) {
+  color: #ffffff;
+  font-weight: 600;
 }
 
 .app-main {

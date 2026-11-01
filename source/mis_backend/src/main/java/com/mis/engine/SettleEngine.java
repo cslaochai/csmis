@@ -1,6 +1,6 @@
 package com.mis.engine;
 
-import com.mis.entity.MssFeeItem;
+import com.mis.entity.MisFeeItem;
 import com.mis.vo.DecVO;
 import org.springframework.stereotype.Component;
 
@@ -19,7 +19,7 @@ public class SettleEngine {
     private static final BigDecimal ACCOUNT_RATIO = new BigDecimal("0.4");
     private static final BigDecimal ACCOUNT_MAX = new BigDecimal("1500");
 
-    public DecVO compute(List<MssFeeItem> items, String insuranceType) {
+    public DecVO compute(List<MisFeeItem> items, String insuranceType) {
         // 参保人表 insurance_type 可能存码值（2-城镇职工 3-城乡居民）也可能是文字（经办窗口录入），先归一
         String type = normalizeInsuranceType(insuranceType);
         BigDecimal total = z();
@@ -28,7 +28,7 @@ public class SettleEngine {
         BigDecimal fullySelf = z();
 
         if (items != null) {
-            for (MssFeeItem it : items) {
+            for (MisFeeItem it : items) {
                 BigDecimal price = it.getPrice() == null ? z() : it.getPrice();
                 BigDecimal qty = it.getQty() == null ? BigDecimal.ONE : new BigDecimal(it.getQty());
                 BigDecimal amount = price.multiply(qty).setScale(2, RoundingMode.HALF_UP);

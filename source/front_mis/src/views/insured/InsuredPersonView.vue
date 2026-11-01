@@ -46,7 +46,14 @@
           <template #default="{ row }">{{ fmt(row.accountBalance) }}</template>
         </el-table-column>
         <el-table-column prop="region" label="参保地" width="110" />
-        <el-table-column prop="createTime" label="创建时间" min-width="160" />
+        <el-table-column prop="createTime" label="创建时间" width="160" />
+        <el-table-column label="操作" width="200" fixed="right">
+          <template #default="{ row }">
+            <el-button link type="primary" @click="openEdit(row)">变更</el-button>
+            <el-button v-if="row.personStatus === 1" link type="danger" @click="suspend(row)">停保</el-button>
+            <el-button v-else link type="success" @click="resume(row)">恢复</el-button>
+          </template>
+        </el-table-column>
       </el-table>
       <div class="flex justify-end mt-3">
         <el-pagination
@@ -58,14 +65,14 @@
       </div>
     </div>
 
-    <!-- 新增/同步参保人 -->
-    <el-dialog v-model="addVisible" title="新增参保人" width="480px" append-to-body>
+    <!-- 新增/变更参保人 -->
+    <el-dialog v-model="addVisible" :title="editId ? '变更参保人' : '新增参保人'" width="480px" append-to-body>
       <el-form ref="formRef" :model="form" :rules="rules" label-width="100px">
         <el-form-item label="姓名" prop="name">
           <el-input v-model="form.name" />
         </el-form-item>
         <el-form-item label="身份证号" prop="idCard">
-          <el-input v-model="form.idCard" placeholder="18 位身份证号" />
+          <el-input v-model="form.idCard" placeholder="18 位身份证号" :disabled="!!editId" />
         </el-form-item>
         <el-form-item label="医保卡号">
           <el-input v-model="form.insuranceNo" />
@@ -94,6 +101,9 @@
         <el-form-item label="参保地">
           <el-input v-model="form.region" placeholder="默认长沙市" />
         </el-form-item>
+        <el-form-item label="备注/说明">
+          <el-input v-model="form.statusRemark" type="textarea" :rows="2" placeholder="变更说明 / 备注" />
+        </el-form-item>
       </el-form>
       <template #footer>
         <el-button @click="addVisible = false">取消</el-button>
@@ -105,8 +115,8 @@
 
 <script setup>
 import { ref, reactive, onMounted } from 'vue'
-import { ElMessage } from 'element-plus'
-import { personListPage, personSave } from '@/api/insurance'
+import { ElMessage, ElMessageBox } from 'element-plus'
+import { personListPage, personSave, personStatusChange } from '@/api/insurance'
 import { PAGE_SIZES } from '@/lib/pagination'
 
 const list = ref([])
@@ -129,20 +139,32 @@ async function load() {
 function search() { q.page = 1; load() }
 function reset() { q.keyword = ''; q.insuranceType = ''; q.page = 1; load() }
 
-// 新增
+// 新增 / 变更
 const addVisible = ref(false)
 const saving = ref(false)
+const editId = ref('')
 const formRef = ref()
-const form = reactive({
+const initForm = {
   name: '', idCard: '', insuranceNo: '', gender: '男', insuranceType: '2',
-  personStatus: 1, accountBalance: 0, region: '长沙市',
-})
+  personStatus: 1, accountBalance: 0, region: '长沙市', statusRemark: '',
+}
+const form = reactive({ ...initForm })
 const rules = {
   name: [{ required: true, message: '请输入姓名', trigger: 'blur' }],
   idCard: [{ required: true, message: '请输入身份证号', trigger: 'blur' }],
 }
 function openAdd() {
-  Object.assign(form, { name: '', idCard: '', insuranceNo: '', gender: '男', insuranceType: '2', personStatus: 1, accountBalance: 0, region: '长沙市' })
+  Object.assign(form, initForm)
+  editId.value = ''
+  addVisible.value = true
+}
+function openEdit(row) {
+  Object.assign(form, {
+    name: row.name, idCard: row.idCard, insuranceNo: row.insuranceNo, gender: row.gender,
+    insuranceType: row.insuranceType, personStatus: row.personStatus,
+    accountBalance: row.accountBalance, region: row.region, statusRemark: row.statusRemark || '',
+  })
+  editId.value = row.id
   addVisible.value = true
 }
 async function onSave() {
@@ -150,13 +172,35 @@ async function onSave() {
   saving.value = true
   try {
     await personSave({ ...form })
-    ElMessage.success('保存成功')
+    ElMessage.success(editId.value ? '变更已保存' : '保存成功')
     addVisible.value = false
     search()
   } catch (e) {
     // 后端 message 已全局提示
   } finally {
     saving.value = false
+  }
+}
+
+// 停保 / 恢复
+async function suspend(row) {
+  try {
+    const { value } = await ElMessageBox.prompt('请输入停保原因', '停保', { inputType: 'textarea', inputValidator: (v) => !!v || '停保原因必填' })
+    await personStatusChange({ id: row.id, personStatus: 0, remark: value })
+    ElMessage.success('已停保')
+    search()
+  } catch (e) {
+    if (e !== 'cancel') {/* 全局提示 */}
+  }
+}
+async function resume(row) {
+  try {
+    const { value } = await ElMessageBox.prompt('请输入恢复（续保）原因', '恢复参保', { inputType: 'textarea' })
+    await personStatusChange({ id: row.id, personStatus: 1, remark: value || '恢复参保' })
+    ElMessage.success('已恢复参保')
+    search()
+  } catch (e) {
+    if (e !== 'cancel') {/* 全局提示 */}
   }
 }
 

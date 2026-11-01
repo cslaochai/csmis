@@ -5,10 +5,10 @@ import com.mis.common.exception.BusinessException;
 import com.mis.config.LoginUser;
 import com.mis.config.UserContext;
 import com.mis.dto.MenuUpsertDTO;
-import com.mis.entity.MssMenu;
-import com.mis.entity.MssRoleMenu;
-import com.mis.mapper.MssMenuMapper;
-import com.mis.mapper.MssRoleMenuMapper;
+import com.mis.entity.SysMenu;
+import com.mis.entity.SysRoleMenu;
+import com.mis.mapper.SysMenuMapper;
+import com.mis.mapper.SysRoleMenuMapper;
 import com.mis.service.SystemMenuService;
 import com.mis.vo.MenuVO;
 import lombok.RequiredArgsConstructor;
@@ -29,14 +29,14 @@ import java.util.stream.Collectors;
 @RequiredArgsConstructor
 public class SystemMenuServiceImpl implements SystemMenuService {
 
-    private final MssMenuMapper menuMapper;
-    private final MssRoleMenuMapper roleMenuMapper;
+    private final SysMenuMapper menuMapper;
+    private final SysRoleMenuMapper roleMenuMapper;
 
     @Override
     public List<MenuVO> tree() {
-        List<MssMenu> menus = menuMapper.selectList(new LambdaQueryWrapper<MssMenu>()
-                .orderByAsc(MssMenu::getSortOrder)
-                .orderByAsc(MssMenu::getId));
+        List<SysMenu> menus = menuMapper.selectList(new LambdaQueryWrapper<SysMenu>()
+                .orderByAsc(SysMenu::getSortOrder)
+                .orderByAsc(SysMenu::getId));
         List<MenuVO> vos = menus.stream().map(this::toVO).collect(Collectors.toList());
         return buildTree(vos);
     }
@@ -52,7 +52,7 @@ public class SystemMenuServiceImpl implements SystemMenuService {
 
     @Override
     public MenuVO getById(Long id) {
-        MssMenu menu = menuMapper.selectById(id);
+        SysMenu menu = menuMapper.selectById(id);
         if (menu == null) {
             throw new BusinessException("菜单不存在");
         }
@@ -61,14 +61,14 @@ public class SystemMenuServiceImpl implements SystemMenuService {
 
     @Override
     public MenuVO upsert(MenuUpsertDTO dto) {
-        MssMenu menu = new MssMenu();
+        SysMenu menu = new SysMenu();
         BeanUtils.copyProperties(dto, menu);
         String operator = operatorName();
 
         if (dto.getId() == null) {
             if (dto.getMenuKey() != null && !dto.getMenuKey().isEmpty()) {
-                Long exist = menuMapper.selectCount(new LambdaQueryWrapper<MssMenu>()
-                        .eq(MssMenu::getMenuKey, dto.getMenuKey()));
+                Long exist = menuMapper.selectCount(new LambdaQueryWrapper<SysMenu>()
+                        .eq(SysMenu::getMenuKey, dto.getMenuKey()));
                 if (exist != null && exist > 0) {
                     throw new BusinessException("菜单标识已存在");
                 }
@@ -88,7 +88,7 @@ public class SystemMenuServiceImpl implements SystemMenuService {
     @Override
     @Transactional(rollbackFor = Exception.class)
     public void deleteById(Long id) {
-        MssMenu menu = menuMapper.selectById(id);
+        SysMenu menu = menuMapper.selectById(id);
         if (menu == null) {
             throw new BusinessException("菜单不存在");
         }
@@ -97,19 +97,19 @@ public class SystemMenuServiceImpl implements SystemMenuService {
         collectTreeIds(id, ids);
         ids.add(id);
         menuMapper.deleteBatchIds(ids);
-        roleMenuMapper.delete(new LambdaQueryWrapper<MssRoleMenu>().in(MssRoleMenu::getMenuId, ids));
+        roleMenuMapper.delete(new LambdaQueryWrapper<SysRoleMenu>().in(SysRoleMenu::getMenuId, ids));
     }
 
     private void collectTreeIds(Long parentId, List<Long> out) {
-        List<MssMenu> children = menuMapper.selectList(new LambdaQueryWrapper<MssMenu>()
-                .eq(MssMenu::getParentId, parentId));
-        for (MssMenu child : children) {
+        List<SysMenu> children = menuMapper.selectList(new LambdaQueryWrapper<SysMenu>()
+                .eq(SysMenu::getParentId, parentId));
+        for (SysMenu child : children) {
             out.add(child.getId());
             collectTreeIds(child.getId(), out);
         }
     }
 
-    private MenuVO toVO(MssMenu menu) {
+    private MenuVO toVO(SysMenu menu) {
         MenuVO vo = new MenuVO();
         BeanUtils.copyProperties(menu, vo);
         return vo;

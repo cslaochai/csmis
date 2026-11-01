@@ -8,10 +8,10 @@ import com.mis.config.UserContext;
 import com.mis.dto.SuspicionHandleDTO;
 import com.mis.dto.SuspicionQueryDTO;
 import com.mis.engine.SuperviseRuleEngine;
-import com.mis.entity.MssRecover;
-import com.mis.entity.MssSuspicion;
-import com.mis.mapper.MssRecoverMapper;
-import com.mis.mapper.MssSuspicionMapper;
+import com.mis.entity.MifRecover;
+import com.mis.entity.MifSuspicion;
+import com.mis.mapper.MifRecoverMapper;
+import com.mis.mapper.MifSuspicionMapper;
 import com.mis.service.AuditRuleService;
 import com.mis.service.SuspicionService;
 import com.mis.vo.ActionVO;
@@ -27,6 +27,7 @@ import java.time.YearMonth;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
 import java.util.stream.Collectors;
+import com.mis.service.impl.TodoServiceImpl;
 
 @Service
 @RequiredArgsConstructor
@@ -34,33 +35,33 @@ public class SuspicionServiceImpl implements SuspicionService {
 
     private static final DateTimeFormatter DAY = DateTimeFormatter.ofPattern("yyyyMMdd");
 
-    private final MssSuspicionMapper suspicionMapper;
-    private final MssRecoverMapper recoverMapper;
+    private final MifSuspicionMapper suspicionMapper;
+    private final MifRecoverMapper recoverMapper;
     private final AuditRuleService ruleService;
     private final SuperviseRuleEngine ruleEngine;
     private final MisProperties properties;
 
     @Override
     public PageVO<SuspicionVO> suspicionPage(SuspicionQueryDTO q) {
-        Page<MssSuspicion> page = new Page<>(q.getPage(), q.getSize());
-        LambdaQueryWrapper<MssSuspicion> w = new LambdaQueryWrapper<>();
+        Page<MifSuspicion> page = new Page<>(q.getPage(), q.getSize());
+        LambdaQueryWrapper<MifSuspicion> w = new LambdaQueryWrapper<>();
         if (hasText(q.getKeyword())) {
             String kw = q.getKeyword().trim();
-            w.and(x -> x.like(MssSuspicion::getSuspicionNo, kw)
-                    .or().like(MssSuspicion::getPatientName, kw)
-                    .or().like(MssSuspicion::getBizNo, kw));
+            w.and(x -> x.like(MifSuspicion::getSuspicionNo, kw)
+                    .or().like(MifSuspicion::getPatientName, kw)
+                    .or().like(MifSuspicion::getBizNo, kw));
         }
         if (hasText(q.getRuleType())) {
-            w.eq(MssSuspicion::getRuleType, q.getRuleType());
+            w.eq(MifSuspicion::getRuleType, q.getRuleType());
         }
         if (hasText(q.getStatus())) {
-            w.eq(MssSuspicion::getStatus, q.getStatus());
+            w.eq(MifSuspicion::getStatus, q.getStatus());
         }
         if (q.getBizSource() != null) {
-            w.eq(MssSuspicion::getBizSource, q.getBizSource());
+            w.eq(MifSuspicion::getBizSource, q.getBizSource());
         }
-        w.orderByDesc(MssSuspicion::getId);
-        Page<MssSuspicion> res = suspicionMapper.selectPage(page, w);
+        w.orderByDesc(MifSuspicion::getId);
+        Page<MifSuspicion> res = suspicionMapper.selectPage(page, w);
         List<SuspicionVO> vos = res.getRecords().stream().map(this::toVO).collect(Collectors.toList());
         return PageVO.of(vos, res.getTotal());
     }
@@ -70,16 +71,16 @@ public class SuspicionServiceImpl implements SuspicionService {
         List<SuperviseRuleEngine.Draft> drafts = ruleEngine.scan(ruleService.enabledRules());
         int inserted = 0;
         for (SuperviseRuleEngine.Draft d : drafts) {
-            Long exists = suspicionMapper.selectCount(new LambdaQueryWrapper<MssSuspicion>()
-                    .eq(MssSuspicion::getBizSource, d.getBizSource())
-                    .eq(MssSuspicion::getBizId, d.getBizId())
-                    .eq(MssSuspicion::getRuleId, d.getRuleId()));
+            Long exists = suspicionMapper.selectCount(new LambdaQueryWrapper<MifSuspicion>()
+                    .eq(MifSuspicion::getBizSource, d.getBizSource())
+                    .eq(MifSuspicion::getBizId, d.getBizId())
+                    .eq(MifSuspicion::getRuleId, d.getRuleId()));
             if (exists != null && exists > 0) {
                 continue;
             }
-            MssSuspicion s = new MssSuspicion();
-            s.setSuspicionNo(nextNo("YZ", suspicionMapper.selectCount(new LambdaQueryWrapper<MssSuspicion>()
-                    .ge(MssSuspicion::getCreateTime, LocalDate.now().atStartOfDay()))));
+            MifSuspicion s = new MifSuspicion();
+            s.setSuspicionNo(nextNo("YZ", suspicionMapper.selectCount(new LambdaQueryWrapper<MifSuspicion>()
+                    .ge(MifSuspicion::getCreateTime, LocalDate.now().atStartOfDay()))));
             s.setRuleId(d.getRuleId());
             s.setRuleName(d.getRuleName());
             s.setRuleType(d.getRuleType());
@@ -98,17 +99,24 @@ public class SuspicionServiceImpl implements SuspicionService {
             s.setStatus("待核实");
             suspicionMapper.insert(s);
             inserted++;
+
+            // 待办中心推送：疑点稽核待核实
+            TodoServiceImpl.pushTodo(
+                    "mif_suspicion",
+                    "疑点稽核待核实：" + s.getSuspicionNo() + " " + d.getReason(),
+                    "mif_suspicion", s.getId(), s.getSuspicionNo(),
+                    "审核员B", 3L, d.getRuleType() != null && d.getRuleType().contains("高") ? 1 : 2);
         }
         return ActionVO.matched(inserted);
     }
 
     @Override
     public SuspicionVO getDetail(Long id) {
-        MssSuspicion s = suspicionMapper.selectById(id);
+        MifSuspicion s = suspicionMapper.selectById(id);
         return s == null ? null : toVO(s);
     }
 
-    private SuspicionVO toVO(MssSuspicion s) {
+    private SuspicionVO toVO(MifSuspicion s) {
         SuspicionVO vo = new SuspicionVO();
         BeanUtils.copyProperties(s, vo);
         return vo;
@@ -116,7 +124,7 @@ public class SuspicionServiceImpl implements SuspicionService {
 
     @Override
     public ActionVO confirm(SuspicionHandleDTO dto) {
-        MssSuspicion s = suspicionMapper.selectById(dto.getId());
+        MifSuspicion s = suspicionMapper.selectById(dto.getId());
         if (s == null) {
             return ActionVO.fail("疑点不存在");
         }
@@ -132,9 +140,9 @@ public class SuspicionServiceImpl implements SuspicionService {
         suspicionMapper.updateById(s);
 
         // 自动生成追回单（来源：疑点稽核）
-        MssRecover r = new MssRecover();
-        r.setRecoverNo(nextNo("ZJ", recoverMapper.selectCount(new LambdaQueryWrapper<MssRecover>()
-                .ge(MssRecover::getCreateTime, LocalDate.now().atStartOfDay()))));
+        MifRecover r = new MifRecover();
+        r.setRecoverNo(nextNo("ZJ", recoverMapper.selectCount(new LambdaQueryWrapper<MifRecover>()
+                .ge(MifRecover::getCreateTime, LocalDate.now().atStartOfDay()))));
         r.setSourceType(1);
         r.setSourceNo(s.getSuspicionNo());
         r.setTargetOrgCode(properties.getMedins().getCode());
@@ -149,7 +157,7 @@ public class SuspicionServiceImpl implements SuspicionService {
 
     @Override
     public ActionVO exclude(SuspicionHandleDTO dto) {
-        MssSuspicion s = suspicionMapper.selectById(dto.getId());
+        MifSuspicion s = suspicionMapper.selectById(dto.getId());
         if (s == null) {
             return ActionVO.fail("疑点不存在");
         }

@@ -14,6 +14,7 @@ import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -27,14 +28,16 @@ import java.util.List;
 @RequiredArgsConstructor
 public class DataInitializer implements ApplicationRunner {
 
-    private final MssCatalogMapper catalogMapper;
-    private final MssItemMappingMapper mappingMapper;
-    private final MssPendingSettleMapper pendingMapper;
-    private final MssBillMapper billMapper;
-    private final MssFeeItemMapper feeItemMapper;
-    private final MssFeeAuditMapper auditMapper;
-    private final MssFilingMapper filingMapper;
-    private final MssReconMapper reconMapper;
+    private final MisCatalogMapper catalogMapper;
+    private final MisItemMappingMapper mappingMapper;
+    private final MisPendingSettleMapper pendingMapper;
+    private final MisBillMapper billMapper;
+    private final MisFeeItemMapper feeItemMapper;
+    private final MisFeeAuditMapper auditMapper;
+    private final MisFilingMapper filingMapper;
+    private final MisReconMapper reconMapper;
+    private final MisStockItemMapper stockItemMapper;
+    private final MisStockTxnMapper stockTxnMapper;
     private final SettleEngine settleEngine;
 
     private long seed = 20261013L;
@@ -75,11 +78,22 @@ public class DataInitializer implements ApplicationRunner {
             "氯化钠注射液(塑瓶)", "奥美拉唑肠溶胶囊", "连花清瘟胶囊", "布洛芬缓释胶囊", "一次性注射器5ml",
             "一次性输液器", "医用无菌敷贴", "真空采血管"};
 
-    private List<MssCatalog> catalogs = new ArrayList<>();
+    /**
+     * 重点关注参保人：同一身份证短期内多次结算，用于触发「高频就医 / 分解住院 / 挂床住院」等
+     * 事前提醒与大数据反欺诈模型的真实命中。
+     */
+    private static final String[] HOT_PATIENT_NAME = {"李建国", "王秀英"};
+    private static final String[] HOT_PATIENT_ID = {"430102197508123456", "430103198203154321"};
+
+    private List<MisCatalog> catalogs = new ArrayList<>();
     private final List<SeedBill> seedBills = new ArrayList<>();
 
     @Override
     public void run(ApplicationArguments args) {
+        // 进销存播种独立执行：它是后加的模块，不能被「目录非空则整体跳过」的守卫挡住，
+        // 否则存量库永远补不上库存主档，盘点与结算出库都无从验证。
+        seedStock();
+
         if (catalogMapper.selectCount(null) > 0) {
             return;
         }
@@ -90,10 +104,90 @@ public class DataInitializer implements ApplicationRunner {
         seedAudit();
         seedFilings();
         seedRecon();
-        log.info("[经办平台] 演示数据初始化完成：目录{} 对照{} 结算单{} 待结算{} 审核{} 备案{} 对账{}",
+        log.info("[经办平台] 演示数据初始化完成：目录{} 对照{} 结算单{} 待结算{} 审核{} 备案{} 对账{} 库存{}",
                 catalogs.size(), HOSP_ITEMS.length, seedBills.size(),
                 pendingMapper.selectCount(null), auditMapper.selectCount(null),
-                filingMapper.selectCount(null), reconMapper.selectCount(null));
+                filingMapper.selectCount(null), reconMapper.selectCount(null),
+                stockItemMapper.selectCount(null));
+    }
+
+    // --------------------------------------------------------------- 进销存
+
+    /**
+     * 药品耗材库存铺底：以目录中的药品/耗材为库存主档，灌入一条期初采购入库流水。
+     * 库存数量与均价按目录限价折算，保证结算出库时能匹配到库存并正常扣减。
+     */
+    private void seedStock() {
+        if (stockItemMapper.selectCount(null) != null && stockItemMapper.selectCount(null) > 0) {
+            return;
+        }
+        // 直接查库取目录（不能依赖内存 catalogs：存量库跳过播种时 catalogs 为空）
+        List<MisCatalog> src = catalogMapper.selectList(
+                new com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper<MisCatalog>()
+                        .in(MisCatalog::getCategory, List.of("西药", "中成药", "中草药", "医用耗材")));
+        if (src.isEmpty()) {
+            return;
+        }
+        LocalDate today = LocalDate.now();
+        int seq = 0;
+        for (MisCatalog c : src) {
+            if (!"西药".equals(c.getCategory()) && !"中成药".equals(c.getCategory())
+                    && !"中草药".equals(c.getCategory()) && !"医用耗材".equals(c.getCategory())) {
+                continue;
+            }
+            seq++;
+            MisStockItem item = new MisStockItem();
+            item.setItemCode(String.format("YP%04d", seq));
+            item.setItemName(c.getName());
+            item.setCategory(c.getCategory());
+            item.setSpec(c.getSpec());
+            item.setUnit(c.getUnit());
+            item.setYbCode(c.getYbCode());
+            item.setManufacturer("演示生产企业-" + c.getCategory() + "股份有限公司");
+            item.setLocation(c.getCategory().equals("医用耗材") ? "耗材库-02区" : "药品库-01区");
+            item.setStatus(1);
+            item.setStockQty(BigDecimal.ZERO);
+            item.setStockAmount(BigDecimal.ZERO);
+            item.setAvgPrice(BigDecimal.ZERO);
+            item.setCreateTime(LocalDateTime.now());
+            item.setUpdateTime(LocalDateTime.now());
+            stockItemMapper.insert(item);
+
+            // 期初采购入库：数量按类别给出，售价取限价的 70%~90%
+            double limit = c.getLimitPrice() == null ? 10.0 : c.getLimitPrice().doubleValue();
+            BigDecimal price = bd(limit * (0.7 + rnd() * 0.2));
+            int qty = c.getCategory().equals("医用耗材") ? randInt(200, 800)
+                    : c.getCategory().equals("中草药") ? randInt(300, 1200) : randInt(80, 400);
+            BigDecimal qtyBd = BigDecimal.valueOf(qty);
+            BigDecimal amount = price.multiply(qtyBd).setScale(2, RoundingMode.HALF_UP);
+
+            MisStockTxn t = new MisStockTxn();
+            t.setTxnNo("KC" + today.format(DateTimeFormatter.ofPattern("yyyyMMdd")) + String.format("%05d", seq));
+            t.setItemId(item.getId());
+            t.setItemCode(item.getItemCode());
+            t.setItemName(item.getItemName());
+            t.setTxnType(1);
+            t.setQty(qtyBd);
+            t.setPrice(price);
+            t.setAmount(amount);
+            t.setBeforeQty(BigDecimal.ZERO);
+            t.setAfterQty(qtyBd);
+            t.setBatchNo("B" + today.format(DateTimeFormatter.ofPattern("yyyyMM")) + String.format("%03d", seq));
+            t.setExpireDate(today.plusMonths(randInt(12, 30)));
+            t.setRefNo("RK" + today.format(DateTimeFormatter.ofPattern("yyyyMM")) + String.format("%04d", seq));
+            t.setBizDate(today.minusDays(randInt(20, 60)));
+            t.setOperator("采购管理员");
+            t.setRemark("期初采购入库");
+            t.setCreateTime(LocalDateTime.now());
+            stockTxnMapper.insert(t);
+
+            item.setStockQty(qtyBd);
+            item.setStockAmount(amount);
+            item.setAvgPrice(price);
+            item.setWarnQty(BigDecimal.valueOf(randInt(30, 120)));
+            item.setUpdateTime(LocalDateTime.now());
+            stockItemMapper.updateById(item);
+        }
     }
 
     // --------------------------------------------------------------- 目录
@@ -115,7 +209,7 @@ public class DataInitializer implements ApplicationRunner {
             int base = randInt(drug ? 6 : 8, drug ? 320 : 460);
             BigDecimal limit = bd(base * (cls.equals("丙") ? 1.0 : randInt(8, 12) / 10.0));
 
-            MssCatalog c = new MssCatalog();
+            MisCatalog c = new MisCatalog();
             c.setYbCode(prefix + String.format("%09d", catalogs.size() + 1));
             c.setName(it[0]);
             c.setCategory(category);
@@ -137,11 +231,11 @@ public class DataInitializer implements ApplicationRunner {
         for (int i = 0; i < HOSP_ITEMS.length; i++) {
             String name = HOSP_ITEMS[i];
             boolean mapped = rnd() > 0.25;
-            MssCatalog c = mapped ? pick(catalogs) : null;
+            MisCatalog c = mapped ? pick(catalogs) : null;
             String category = name.contains("费") ? "诊疗项目"
                     : (name.contains("注射") || name.contains("输液") || name.contains("敷贴") || name.contains("采血"))
                     ? "医用耗材" : "药品";
-            MssItemMapping m = new MssItemMapping();
+            MisItemMapping m = new MisItemMapping();
             m.setHospItemCode("H" + (1000 + i));
             m.setHospItemName(name);
             m.setCategory(category);
@@ -162,15 +256,44 @@ public class DataInitializer implements ApplicationRunner {
         for (int i = 0; i < 42; i++) {
             String insType = pick(INSURANCE_TYPES);
             String settleType = pick(SETTLE_TYPES);
-            List<MssFeeItem> items = genItems(randInt(3, 8));
+            List<MisFeeItem> items = genItems(randInt(3, 8));
             DecVO d = settleEngine.compute(items, insType);
             LocalDate day = today.minusDays(randInt(0, 9));
             LocalDateTime time = day.atTime(randInt(8, 18), randInt(0, 59));
             String status = pick(List.of("已结算", "已结算", "已结算", "待审核", "异常", "已退费"));
             String name = makeName();
             String idCard = makeIdCard();
+            Integer admitDays = null;
 
-            MssBill bill = new MssBill();
+            // ---- 构造可被监管模型真实命中的业务特征 ----
+            if (i < 8) {
+                // 同一参保人短期内多次结算（命中高频就医）
+                name = HOT_PATIENT_NAME[0];
+                idCard = HOT_PATIENT_ID[0];
+                day = today.minusDays(randInt(0, 4));
+                time = day.atTime(randInt(8, 18), randInt(0, 59));
+            }
+            if (i < 4) {
+                // 住院天数长但费用畸低（命中挂床住院 / 分解住院 / 空刷医保卡）
+                settleType = "住院";
+                admitDays = randInt(12, 19);
+                day = today.minusDays(randInt(0, 4));
+                time = day.atTime(randInt(8, 18), randInt(0, 59));
+                d.setTotal(bd(280 + randInt(0, 160)));
+                d.setInsurancePay(BigDecimal.ZERO);
+                d.setPersonalAccount(BigDecimal.ZERO);
+                d.setCashPay(d.getTotal());
+                d.setSelfPay(d.getTotal());
+                scaleItems(items, d.getTotal());
+            }
+            if (i == 8) {
+                // 部分项目未做医保目录对照（命中目录未对照 / 串换药品嫌疑）
+                for (int k = 0; k < Math.min(2, items.size()); k++) {
+                    items.get(k).setYbCode("");
+                }
+            }
+
+            MisBill bill = new MisBill();
             bill.setBillNo("YL" + day.getYear() + String.format("%02d", day.getMonthValue()) + randInt(10000, 99999));
             bill.setBizNo(bill.getBillNo());
             bill.setPatientName(name);
@@ -182,6 +305,7 @@ public class DataInitializer implements ApplicationRunner {
             bill.setDoctor(pick(DOCTORS));
             bill.setSettleTime(time);
             bill.setStatus(status);
+            bill.setAdmitDays(admitDays);
             bill.setTotalAmount(d.getTotal());
             bill.setInsurancePay(d.getInsurancePay());
             bill.setPersonalAccount(d.getPersonalAccount());
@@ -191,7 +315,7 @@ public class DataInitializer implements ApplicationRunner {
             bill.setBasePool(d.getBasePool());
             billMapper.insert(bill);
 
-            for (MssFeeItem it : items) {
+            for (MisFeeItem it : items) {
                 it.setOwnerType(2);
                 it.setOwnerId(bill.getId());
                 if (status.equals("已退费")) {
@@ -208,21 +332,21 @@ public class DataInitializer implements ApplicationRunner {
     private void seedPending() {
         LocalDate today = LocalDate.now();
         for (int i = 0; i < 14; i++) {
-            MssPendingSettle p = basePending(pick(INSURANCE_TYPES), "MZ" + (20261000 + i), 1);
+            MisPendingSettle p = basePending(pick(INSURANCE_TYPES), "MZ" + (20261000 + i), 1);
             p.setBizTime(today.minusDays(randInt(0, 9)).atTime(randInt(8, 17), randInt(0, 59)));
             pendingMapper.insert(p);
-            for (MssFeeItem it : genItems(randInt(3, 7))) {
+            for (MisFeeItem it : genItems(randInt(3, 7))) {
                 it.setOwnerType(1);
                 it.setOwnerId(p.getId());
                 feeItemMapper.insert(it);
             }
         }
         for (int i = 0; i < 10; i++) {
-            MssPendingSettle p = basePending(pick(INSURANCE_TYPES), "ZY" + (20265000 + i), 2);
+            MisPendingSettle p = basePending(pick(INSURANCE_TYPES), "ZY" + (20265000 + i), 2);
             p.setAdmitDays(randInt(3, 21));
             p.setBizTime(today.minusDays(randInt(0, 9)).atTime(randInt(8, 17), randInt(0, 59)));
             pendingMapper.insert(p);
-            for (MssFeeItem it : genItems(randInt(6, 14))) {
+            for (MisFeeItem it : genItems(randInt(6, 14))) {
                 it.setOwnerType(1);
                 it.setOwnerId(p.getId());
                 feeItemMapper.insert(it);
@@ -230,9 +354,9 @@ public class DataInitializer implements ApplicationRunner {
         }
     }
 
-    private MssPendingSettle basePending(String insType, String bizNo, int bizType) {
+    private MisPendingSettle basePending(String insType, String bizNo, int bizType) {
         String idCard = makeIdCard();
-        MssPendingSettle p = new MssPendingSettle();
+        MisPendingSettle p = new MisPendingSettle();
         p.setBizType(bizType);
         p.setBizNo(bizNo);
         p.setPatientName(makeName());
@@ -252,9 +376,9 @@ public class DataInitializer implements ApplicationRunner {
             if (!sb.status.equals("待审核") && !sb.status.equals("异常")) {
                 continue;
             }
-            for (MssFeeItem it : sb.items) {
+            for (MisFeeItem it : sb.items) {
                 if (("乙".equals(it.getPayClass()) || "丙".equals(it.getPayClass())) && rnd() > 0.4) {
-                    MssFeeAudit a = new MssFeeAudit();
+                    MisFeeAudit a = new MisFeeAudit();
                     a.setBillId(sb.bill.getId());
                     a.setBillNo(sb.bill.getBillNo());
                     a.setPatientName(sb.bill.getPatientName());
@@ -280,7 +404,7 @@ public class DataInitializer implements ApplicationRunner {
         List<String> insAreas = List.of("长沙市", "株洲市", "湘潭市");
         List<String> hospitals = List.of("长沙市麓康医院", "湘雅医院", "湖南省人民医院");
         for (int i = 0; i < 12; i++) {
-            MssFiling f = new MssFiling();
+            MisFiling f = new MisFiling();
             f.setName(makeName());
             f.setIdCardMask(maskId(makeIdCard()));
             f.setInsuranceArea(pick(insAreas));
@@ -306,7 +430,7 @@ public class DataInitializer implements ApplicationRunner {
             BigDecimal insurancePay = bd(billCount * randInt(280, 520));
             BigDecimal received = bd(insurancePay.doubleValue() * (0.97 + rnd() * 0.05));
             BigDecimal diff = received.subtract(insurancePay);
-            MssRecon r = new MssRecon();
+            MisRecon r = new MisRecon();
             r.setPeriod(period);
             r.setBillCount(billCount);
             r.setInsurancePay(insurancePay);
@@ -320,13 +444,13 @@ public class DataInitializer implements ApplicationRunner {
 
     // --------------------------------------------------------------- 工具
 
-    private List<MssFeeItem> genItems(int n) {
-        List<MssFeeItem> list = new ArrayList<>();
+    private List<MisFeeItem> genItems(int n) {
+        List<MisFeeItem> list = new ArrayList<>();
         for (int i = 0; i < n; i++) {
-            MssCatalog c = pick(catalogs);
+            MisCatalog c = pick(catalogs);
             int qty = c.getCategory().equals("中草药") ? randInt(50, 200) : randInt(1, 6);
             BigDecimal price = bd(c.getLimitPrice().doubleValue() * (0.6 + rnd() * 0.6));
-            MssFeeItem it = new MssFeeItem();
+            MisFeeItem it = new MisFeeItem();
             it.setName(c.getName());
             it.setCategory(c.getCategory());
             it.setSpec(c.getSpec());
@@ -376,10 +500,30 @@ public class DataInitializer implements ApplicationRunner {
         return a + (int) (rnd() * (b - a + 1));
     }
 
+    /** 按比例缩放费用明细，使明细合计与结算单金额保持一致（构造低费用住院等特征用） */
+    private void scaleItems(List<MisFeeItem> items, BigDecimal target) {
+        BigDecimal sum = BigDecimal.ZERO;
+        for (MisFeeItem it : items) {
+            sum = sum.add(it.getAmount() == null ? BigDecimal.ZERO : it.getAmount());
+        }
+        if (sum.compareTo(BigDecimal.ZERO) <= 0 || target == null) {
+            return;
+        }
+        BigDecimal ratio = target.divide(sum, 6, RoundingMode.HALF_UP);
+        for (MisFeeItem it : items) {
+            BigDecimal amt = (it.getAmount() == null ? BigDecimal.ZERO : it.getAmount()).multiply(ratio)
+                    .setScale(2, RoundingMode.HALF_UP);
+            it.setAmount(amt);
+            if (it.getQty() != null && it.getQty() > 0) {
+                it.setPrice(amt.divide(BigDecimal.valueOf(it.getQty()), 2, RoundingMode.HALF_UP));
+            }
+        }
+    }
+
     private BigDecimal bd(double v) {
         return BigDecimal.valueOf(v).setScale(2, RoundingMode.HALF_UP);
     }
 
-    private record SeedBill(MssBill bill, List<MssFeeItem> items, String status) {
+    private record SeedBill(MisBill bill, List<MisFeeItem> items, String status) {
     }
 }

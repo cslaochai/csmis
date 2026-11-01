@@ -8,7 +8,7 @@ import com.mis.vo.GatewaySettleVO;
  *
  * <ul>
  *   <li>2201 预结算：只算 splits 不落库，给收费员看「医保报多少、个账扣多少、现金收多少」</li>
- *   <li>2301 正式结算：幂等落 mss_settlement、扣参保人个账、出医保结算单号</li>
+ *   <li>2301 正式结算：幂等落 mis_settlement、扣参保人个账、出医保结算单号</li>
  * </ul>
  */
 public interface GatewayRealTimeSettleService {

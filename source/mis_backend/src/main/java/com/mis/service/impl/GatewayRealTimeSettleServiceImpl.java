@@ -3,13 +3,13 @@ package com.mis.service.impl;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.mis.dto.GatewayRealTimeSettleDTO;
 import com.mis.engine.SettleEngine;
-import com.mis.entity.JinbInsuredPerson;
-import com.mis.entity.JinbMessage;
-import com.mis.entity.JinbSettlement;
-import com.mis.entity.MssFeeItem;
-import com.mis.mapper.JinbInsuredPersonMapper;
-import com.mis.mapper.JinbMessageMapper;
-import com.mis.mapper.JinbSettlementMapper;
+import com.mis.entity.MisInsuredPerson;
+import com.mis.entity.MisMessage;
+import com.mis.entity.MisSettlement;
+import com.mis.entity.MisFeeItem;
+import com.mis.mapper.MisInsuredPersonMapper;
+import com.mis.mapper.MisMessageMapper;
+import com.mis.mapper.MisSettlementMapper;
 import com.mis.service.GatewayRealTimeSettleService;
 import com.mis.vo.DecVO;
 import com.mis.vo.GatewaySettleVO;
@@ -38,9 +38,9 @@ public class GatewayRealTimeSettleServiceImpl implements GatewayRealTimeSettleSe
 
     private static final DateTimeFormatter DAY = DateTimeFormatter.ofPattern("yyyyMMdd");
 
-    private final JinbInsuredPersonMapper personMapper;
-    private final JinbSettlementMapper settlementMapper;
-    private final JinbMessageMapper messageMapper;
+    private final MisInsuredPersonMapper personMapper;
+    private final MisSettlementMapper settlementMapper;
+    private final MisMessageMapper messageMapper;
     private final SettleEngine settleEngine;
 
     @Override
@@ -52,7 +52,7 @@ public class GatewayRealTimeSettleServiceImpl implements GatewayRealTimeSettleSe
     @Transactional(rollbackFor = Exception.class)
     public GatewaySettleVO formalSettle(GatewayRealTimeSettleDTO dto) {
         // 幂等：同一 tradeNo 已正式结算过，直接回原结果
-        JinbSettlement exist = byTradeNo(dto.getTradeNo());
+        MisSettlement exist = byTradeNo(dto.getTradeNo());
         if (exist != null && exist.getStatus() != null && exist.getStatus() == 1) {
             return toVO(exist, null, "重复结算，按原结果幂等返回");
         }
@@ -77,7 +77,7 @@ public class GatewayRealTimeSettleServiceImpl implements GatewayRealTimeSettleSe
         }
 
         // 2) 查参保人（按身份证优先，与 /insure/person/query 同口径）
-        JinbInsuredPerson person = findPerson(dto);
+        MisInsuredPerson person = findPerson(dto);
         if (person == null) {
             return fail(vo, "参保库查无此人（idCard=" + dto.getIdCard() + "，insuranceNo=" + dto.getInsuranceNo() + "）");
         }
@@ -88,9 +88,9 @@ public class GatewayRealTimeSettleServiceImpl implements GatewayRealTimeSettleSe
         }
 
         // 3) 费用分解
-        List<MssFeeItem> engineItems = new ArrayList<>(dto.getItems().size());
+        List<MisFeeItem> engineItems = new ArrayList<>(dto.getItems().size());
         for (GatewayRealTimeSettleDTO.Item it : dto.getItems()) {
-            MssFeeItem m = new MssFeeItem();
+            MisFeeItem m = new MisFeeItem();
             m.setName(it.getName());
             m.setYbCode(it.getYbCode());
             m.setPayClass(it.getPayClass());
@@ -126,8 +126,8 @@ public class GatewayRealTimeSettleServiceImpl implements GatewayRealTimeSettleSe
         person.setAccountBalance(accountAfter);
         personMapper.updateById(person);
 
-        // 落 mss_settlement
-        JinbSettlement s = new JinbSettlement();
+        // 落 mis_settlement
+        MisSettlement s = new MisSettlement();
         s.setTradeNo(dto.getTradeNo());
         s.setSettlementNo(dto.getTradeNo());
         s.setBillNo(dto.getBillNo());
@@ -153,7 +153,7 @@ public class GatewayRealTimeSettleServiceImpl implements GatewayRealTimeSettleSe
         settlementMapper.updateById(s);
 
         // 报文台账
-        JinbMessage msg = new JinbMessage();
+        MisMessage msg = new MisMessage();
         msg.setMsgType("2301");
         msg.setTradeNo(dto.getTradeNo());
         msg.setSuccess(1);
@@ -171,28 +171,28 @@ public class GatewayRealTimeSettleServiceImpl implements GatewayRealTimeSettleSe
         return vo;
     }
 
-    private JinbInsuredPerson findPerson(GatewayRealTimeSettleDTO dto) {
-        LambdaQueryWrapper<JinbInsuredPerson> w = new LambdaQueryWrapper<>();
+    private MisInsuredPerson findPerson(GatewayRealTimeSettleDTO dto) {
+        LambdaQueryWrapper<MisInsuredPerson> w = new LambdaQueryWrapper<>();
         if (StringUtils.hasText(dto.getIdCard())) {
-            w.eq(JinbInsuredPerson::getIdCard, dto.getIdCard());
+            w.eq(MisInsuredPerson::getIdCard, dto.getIdCard());
         } else {
-            w.eq(JinbInsuredPerson::getInsuranceNo, dto.getInsuranceNo());
+            w.eq(MisInsuredPerson::getInsuranceNo, dto.getInsuranceNo());
         }
         w.last("limit 1");
         return personMapper.selectOne(w);
     }
 
-    private JinbSettlement byTradeNo(String tradeNo) {
+    private MisSettlement byTradeNo(String tradeNo) {
         if (!StringUtils.hasText(tradeNo)) {
             return null;
         }
-        return settlementMapper.selectOne(new LambdaQueryWrapper<JinbSettlement>()
-                .eq(JinbSettlement::getTradeNo, tradeNo)
-                .orderByDesc(JinbSettlement::getId)
+        return settlementMapper.selectOne(new LambdaQueryWrapper<MisSettlement>()
+                .eq(MisSettlement::getTradeNo, tradeNo)
+                .orderByDesc(MisSettlement::getId)
                 .last("limit 1"));
     }
 
-    private GatewaySettleVO toVO(JinbSettlement s, BigDecimal accountAfter, String warn) {
+    private GatewaySettleVO toVO(MisSettlement s, BigDecimal accountAfter, String warn) {
         GatewaySettleVO vo = new GatewaySettleVO();
         vo.setInfcode(0);
         vo.setTradeNo(s.getTradeNo());

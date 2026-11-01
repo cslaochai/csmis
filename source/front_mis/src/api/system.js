@@ -236,3 +236,87 @@ export function employeeSelect(keyword) {
 export function deptSelectList() {
   return request.get('/system/dept/selectList')
 }
+
+// ========== 操作日志（审计留痕） ==========
+
+export function listOperLogs(params) {
+  return request.get('/system/operlog/listPage', { params: cleanParams(params) })
+}
+
+export function operLogStat(days) {
+  return request.get('/system/operlog/stat', { params: { days } })
+}
+
+export function cleanOperLogs(keepDays) {
+  return request.post('/system/operlog/clean', null, { params: { keepDays } })
+}
+
+// ========== 待办中心 ==========
+
+export function listTodos(params) {
+  return request.get('/system/todo/listPage', { params: cleanParams(params) })
+}
+
+export function countTodos() {
+  return request.get('/system/todo/count')
+}
+
+export function handleTodo(data) {
+  return request.post('/system/todo/handle', data)
+}
+
+// ========== 结算清单 ==========
+
+export function listSettleLists(params) {
+  return request.get('/settle/list/listPage', { params: cleanParams(params) })
+}
+
+export function getSettleListDetail(id) {
+  return request.get(`/settle/list/detail/${id}`)
+}
+
+// ========== 目录分表（药品/诊疗/耗材） ==========
+
+export function listCatalogSplit(params) {
+  return request.get('/settle/catalog/listPage', { params: cleanParams(params) })
+}
+
+export function catalogSplitStats() {
+  return request.get('/settle/catalog/stats')
+}
+
+// ========== 库存盘点 ==========
+
+export function listStockChecks(params) {
+  return request.get('/stock/check/listPage', { params: cleanParams(params) })
+}
+
+export function createStockCheck(params) {
+  return request.post('/stock/check/create', null, { params: cleanParams(params) })
+}
+
+export function getStockCheckItems(checkNo) {
+  return request.get('/stock/check/items', { params: { checkNo } })
+}
+
+export function submitStockCheckItems(data) {
+  return request.post('/stock/check/submitItems', data)
+}
+
+export function finishStockCheck(checkNo) {
+  return request.post('/stock/check/finish', null, { params: { checkNo } })
+}
+
+export function reviewStockCheck(checkNo, pass, opinion) {
+  return request.post('/stock/check/review', null, { params: { checkNo, pass, opinion } })
+}
+
+// ========== 个人账户划入（缴费记录驱动） ==========
+
+export function accrueAccount(idCard, payRecordIds) {
+  return request.post('/insure/account/accrue', null, { params: { idCard, payRecordIds } })
+}
+
+export function accrueAccountBatch(payMonth) {
+  return request.post('/insure/account/accrueBatch', null, { params: { payMonth } })
+}

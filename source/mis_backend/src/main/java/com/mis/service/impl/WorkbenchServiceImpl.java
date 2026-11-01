@@ -2,18 +2,18 @@ package com.mis.service.impl;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
-import com.mis.entity.MssBill;
-import com.mis.entity.MssFeeAudit;
-import com.mis.entity.MssPendingSettle;
-import com.mis.entity.MssRecon;
-import com.mis.entity.MssRecover;
-import com.mis.entity.MssSuspicion;
-import com.mis.mapper.MssBillMapper;
-import com.mis.mapper.MssFeeAuditMapper;
-import com.mis.mapper.MssPendingSettleMapper;
-import com.mis.mapper.MssReconMapper;
-import com.mis.mapper.MssRecoverMapper;
-import com.mis.mapper.MssSuspicionMapper;
+import com.mis.entity.MisBill;
+import com.mis.entity.MisFeeAudit;
+import com.mis.entity.MisPendingSettle;
+import com.mis.entity.MisRecon;
+import com.mis.entity.MifRecover;
+import com.mis.entity.MifSuspicion;
+import com.mis.mapper.MisBillMapper;
+import com.mis.mapper.MisFeeAuditMapper;
+import com.mis.mapper.MisPendingSettleMapper;
+import com.mis.mapper.MisReconMapper;
+import com.mis.mapper.MifRecoverMapper;
+import com.mis.mapper.MifSuspicionMapper;
 import com.mis.service.WorkbenchService;
 import com.mis.vo.BillVO;
 import com.mis.vo.StatsVO;
@@ -34,12 +34,12 @@ import java.util.Map;
 @RequiredArgsConstructor
 public class WorkbenchServiceImpl implements WorkbenchService {
 
-    private final MssBillMapper billMapper;
-    private final MssPendingSettleMapper pendingMapper;
-    private final MssFeeAuditMapper auditMapper;
-    private final MssReconMapper reconMapper;
-    private final MssSuspicionMapper suspicionMapper;
-    private final MssRecoverMapper recoverMapper;
+    private final MisBillMapper billMapper;
+    private final MisPendingSettleMapper pendingMapper;
+    private final MisFeeAuditMapper auditMapper;
+    private final MisReconMapper reconMapper;
+    private final MifSuspicionMapper suspicionMapper;
+    private final MifRecoverMapper recoverMapper;
 
     @Override
     public WorkbenchVO summary() {
@@ -47,29 +47,29 @@ public class WorkbenchServiceImpl implements WorkbenchService {
         LocalDateTime start = today.atStartOfDay();
         LocalDateTime end = today.plusDays(1).atStartOfDay();
 
-        List<MssBill> todays = billMapper.selectList(new LambdaQueryWrapper<MssBill>()
-                .ge(MssBill::getSettleTime, start)
-                .lt(MssBill::getSettleTime, end));
+        List<MisBill> todays = billMapper.selectList(new LambdaQueryWrapper<MisBill>()
+                .ge(MisBill::getSettleTime, start)
+                .lt(MisBill::getSettleTime, end));
 
         WorkbenchVO.Kpi kpi = new WorkbenchVO.Kpi();
         kpi.setTodayCount(todays.size());
-        kpi.setTodayAmount(sum(todays, MssBill::getTotalAmount));
-        kpi.setInsurancePay(sum(todays, MssBill::getInsurancePay));
-        kpi.setPersonalAccount(sum(todays, MssBill::getPersonalAccount));
-        kpi.setCashPay(sum(todays, MssBill::getCashPay));
+        kpi.setTodayAmount(sum(todays, MisBill::getTotalAmount));
+        kpi.setInsurancePay(sum(todays, MisBill::getInsurancePay));
+        kpi.setPersonalAccount(sum(todays, MisBill::getPersonalAccount));
+        kpi.setCashPay(sum(todays, MisBill::getCashPay));
 
-        long pending = pendingMapper.selectCount(new LambdaQueryWrapper<MssPendingSettle>()
-                .eq(MssPendingSettle::getStatus, 1));
-        long audit = auditMapper.selectCount(new LambdaQueryWrapper<MssFeeAudit>()
-                .eq(MssFeeAudit::getStatus, "待审核"));
-        long reconcile = reconMapper.selectCount(new LambdaQueryWrapper<MssRecon>()
-                .eq(MssRecon::getStatus, "待对账"));
-        long refund = billMapper.selectCount(new LambdaQueryWrapper<MssBill>()
-                .eq(MssBill::getStatus, "已退费"));
-        long suspicion = suspicionMapper.selectCount(new LambdaQueryWrapper<MssSuspicion>()
-                .eq(MssSuspicion::getStatus, "待核实"));
-        long recover = recoverMapper.selectCount(new LambdaQueryWrapper<MssRecover>()
-                .eq(MssRecover::getStatus, "待追回"));
+        long pending = pendingMapper.selectCount(new LambdaQueryWrapper<MisPendingSettle>()
+                .eq(MisPendingSettle::getStatus, 1));
+        long audit = auditMapper.selectCount(new LambdaQueryWrapper<MisFeeAudit>()
+                .eq(MisFeeAudit::getStatus, "待审核"));
+        long reconcile = reconMapper.selectCount(new LambdaQueryWrapper<MisRecon>()
+                .eq(MisRecon::getStatus, "待对账"));
+        long refund = billMapper.selectCount(new LambdaQueryWrapper<MisBill>()
+                .eq(MisBill::getStatus, "已退费"));
+        long suspicion = suspicionMapper.selectCount(new LambdaQueryWrapper<MifSuspicion>()
+                .eq(MifSuspicion::getStatus, "待核实"));
+        long recover = recoverMapper.selectCount(new LambdaQueryWrapper<MifRecover>()
+                .eq(MifRecover::getStatus, "待追回"));
 
         WorkbenchVO.Todo todo = new WorkbenchVO.Todo();
         todo.setPendingSettle((int) pending);
@@ -80,10 +80,10 @@ public class WorkbenchServiceImpl implements WorkbenchService {
         todo.setRecover((int) recover);
         todo.setTotal((int) (pending + audit + reconcile + suspicion + recover));
 
-        List<MssBill> recent = billMapper.selectPage(new Page<>(1, 6),
-                new LambdaQueryWrapper<MssBill>().orderByDesc(MssBill::getSettleTime)).getRecords();
+        List<MisBill> recent = billMapper.selectPage(new Page<>(1, 6),
+                new LambdaQueryWrapper<MisBill>().orderByDesc(MisBill::getSettleTime)).getRecords();
         List<BillVO> recentVO = new ArrayList<>();
-        for (MssBill b : recent) {
+        for (MisBill b : recent) {
             BillVO vo = new BillVO();
             BeanUtils.copyProperties(b, vo);
             recentVO.add(vo);
@@ -98,11 +98,11 @@ public class WorkbenchServiceImpl implements WorkbenchService {
 
     @Override
     public StatsVO stats() {
-        List<MssBill> all = billMapper.selectList(null);
+        List<MisBill> all = billMapper.selectList(null);
 
         Map<String, StatsVO.InsStat> byIns = new LinkedHashMap<>();
         Map<String, StatsVO.DeptStat> byDept = new LinkedHashMap<>();
-        for (MssBill b : all) {
+        for (MisBill b : all) {
             StatsVO.InsStat ins = byIns.computeIfAbsent(b.getInsuranceType(), k -> {
                 StatsVO.InsStat s = new StatsVO.InsStat();
                 s.setAmount(z());
@@ -128,12 +128,12 @@ public class WorkbenchServiceImpl implements WorkbenchService {
             LocalDate d = today.minusDays(i);
             LocalDateTime s = d.atStartOfDay();
             LocalDateTime e = d.plusDays(1).atStartOfDay();
-            List<MssBill> dayBills = billMapper.selectList(new LambdaQueryWrapper<MssBill>()
-                    .ge(MssBill::getSettleTime, s).lt(MssBill::getSettleTime, e));
+            List<MisBill> dayBills = billMapper.selectList(new LambdaQueryWrapper<MisBill>()
+                    .ge(MisBill::getSettleTime, s).lt(MisBill::getSettleTime, e));
             StatsVO.TrendPoint p = new StatsVO.TrendPoint();
             p.setDay(d.toString());
             p.setCount(dayBills.size());
-            p.setAmount(sum(dayBills, MssBill::getTotalAmount));
+            p.setAmount(sum(dayBills, MisBill::getTotalAmount));
             trend.add(p);
         }
 
@@ -144,9 +144,9 @@ public class WorkbenchServiceImpl implements WorkbenchService {
         return vo;
     }
 
-    private BigDecimal sum(List<MssBill> list, java.util.function.Function<MssBill, BigDecimal> getter) {
+    private BigDecimal sum(List<MisBill> list, java.util.function.Function<MisBill, BigDecimal> getter) {
         BigDecimal total = z();
-        for (MssBill b : list) {
+        for (MisBill b : list) {
             total = total.add(nz(getter.apply(b)));
         }
         return total;

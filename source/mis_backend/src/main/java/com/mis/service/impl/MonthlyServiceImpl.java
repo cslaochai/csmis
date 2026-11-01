@@ -7,13 +7,13 @@ import com.mis.common.exception.BusinessException;
 import com.mis.config.MisProperties;
 import com.mis.engine.PolicyEngine;
 import com.mis.entity.MisAllocation;
-import com.mis.entity.JinbMonthly;
-import com.mis.entity.JinbMonthlyDeduct;
-import com.mis.entity.JinbSettlement;
+import com.mis.entity.MisMonthly;
+import com.mis.entity.MisMonthlyDeduct;
+import com.mis.entity.MisSettlement;
 import com.mis.mapper.JinbAllocationMapper;
-import com.mis.mapper.JinbMonthlyDeductMapper;
-import com.mis.mapper.JinbMonthlyMapper;
-import com.mis.mapper.JinbSettlementMapper;
+import com.mis.mapper.MisMonthlyDeductMapper;
+import com.mis.mapper.MisMonthlyMapper;
+import com.mis.mapper.MisSettlementMapper;
 import com.mis.service.MonthlyService;
 import com.mis.vo.AllocationVO;
 import com.mis.vo.MonthlyDeductVO;
@@ -34,17 +34,17 @@ import java.util.stream.Collectors;
 @Service
 public class MonthlyServiceImpl implements MonthlyService {
 
-    private final JinbMonthlyMapper monthlyMapper;
-    private final JinbMonthlyDeductMapper deductMapper;
+    private final MisMonthlyMapper monthlyMapper;
+    private final MisMonthlyDeductMapper deductMapper;
     private final JinbAllocationMapper allocationMapper;
-    private final JinbSettlementMapper settlementMapper;
+    private final MisSettlementMapper settlementMapper;
     private final PolicyEngine policyEngine;
     private final MisProperties properties;
 
-    public MonthlyServiceImpl(JinbMonthlyMapper monthlyMapper,
-                              JinbMonthlyDeductMapper deductMapper,
+    public MonthlyServiceImpl(MisMonthlyMapper monthlyMapper,
+                              MisMonthlyDeductMapper deductMapper,
                               JinbAllocationMapper allocationMapper,
-                              JinbSettlementMapper settlementMapper,
+                              MisSettlementMapper settlementMapper,
                               PolicyEngine policyEngine,
                               MisProperties properties) {
         this.monthlyMapper = monthlyMapper;
@@ -62,16 +62,16 @@ public class MonthlyServiceImpl implements MonthlyService {
         LocalDate start = ym.atDay(1);
         LocalDate end = ym.atEndOfMonth();
 
-        List<JinbSettlement> settlements = validSettlements(start, end);
+        List<MisSettlement> settlements = validSettlements(start, end);
         int count = settlements.size();
         BigDecimal declareAmount = settlements.stream()
                 .map(s -> nz(s.getInsurancePay()))
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
         declareAmount = scale(declareAmount);
 
-        JinbMonthly m = requireByMonth(month);
+        MisMonthly m = requireByMonth(month);
         if (m == null) {
-            m = new JinbMonthly();
+            m = new MisMonthly();
             m.setMonth(month);
             m.setFixMedinsCode(properties.getMedins().getCode());
             m.setStatus(1);
@@ -98,7 +98,7 @@ public class MonthlyServiceImpl implements MonthlyService {
     @Override
     @Transactional(rollbackFor = Exception.class)
     public MonthlyResultVO audit(String month) {
-        JinbMonthly m = requireByMonth(month);
+        MisMonthly m = requireByMonth(month);
         if (m == null) {
             throw new BusinessException(month + " 尚未申报，请先申报");
         }
@@ -107,18 +107,18 @@ public class MonthlyServiceImpl implements MonthlyService {
         }
 
         YearMonth ym = YearMonth.parse(month);
-        List<JinbSettlement> settlements = validSettlements(ym.atDay(1), ym.atEndOfMonth());
+        List<MisSettlement> settlements = validSettlements(ym.atDay(1), ym.atEndOfMonth());
 
         BigDecimal deductAmount = BigDecimal.ZERO;
         BigDecimal ratio = properties.getAudit().getRefuseRatio();
-        for (JinbSettlement s : settlements) {
+        for (MisSettlement s : settlements) {
             if (policyEngine.isViolation(s.getSettlementNo())) {
                 BigDecimal amount = scale(nz(s.getInsurancePay()).multiply(ratio));
                 if (amount.signum() <= 0) {
                     continue;
                 }
                 deductAmount = deductAmount.add(amount);
-                JinbMonthlyDeduct d = new JinbMonthlyDeduct();
+                MisMonthlyDeduct d = new MisMonthlyDeduct();
                 d.setMonth(month);
                 d.setTradeNo(s.getTradeNo());
                 d.setSettlementNo(s.getSettlementNo());
@@ -146,7 +146,7 @@ public class MonthlyServiceImpl implements MonthlyService {
     @Override
     @Transactional(rollbackFor = Exception.class)
     public MonthlyResultVO allocate(String month) {
-        JinbMonthly m = requireByMonth(month);
+        MisMonthly m = requireByMonth(month);
         if (m == null) {
             throw new BusinessException(month + " 尚未申报，请先申报");
         }
@@ -173,7 +173,7 @@ public class MonthlyServiceImpl implements MonthlyService {
     @Override
     @Transactional(rollbackFor = Exception.class)
     public MonthlyResultVO yearSettle(String month) {
-        JinbMonthly m = requireByMonth(month);
+        MisMonthly m = requireByMonth(month);
         if (m == null) {
             throw new BusinessException(month + " 尚未申报，请先申报");
         }
@@ -200,13 +200,13 @@ public class MonthlyServiceImpl implements MonthlyService {
 
     @Override
     public MonthlyResultVO result(String month) {
-        JinbMonthly m = requireByMonth(month);
+        MisMonthly m = requireByMonth(month);
         if (m == null) {
             throw new BusinessException(month + " 尚未申报");
         }
-        List<JinbMonthlyDeduct> deducts = deductMapper.selectList(new LambdaQueryWrapper<JinbMonthlyDeduct>()
-                .eq(JinbMonthlyDeduct::getMonth, month)
-                .orderByAsc(JinbMonthlyDeduct::getId));
+        List<MisMonthlyDeduct> deducts = deductMapper.selectList(new LambdaQueryWrapper<MisMonthlyDeduct>()
+                .eq(MisMonthlyDeduct::getMonth, month)
+                .orderByAsc(MisMonthlyDeduct::getId));
         List<MisAllocation> allocations = allocationMapper.selectList(new LambdaQueryWrapper<MisAllocation>()
                 .eq(MisAllocation::getMonth, month)
                 .orderByAsc(MisAllocation::getId));
@@ -237,8 +237,8 @@ public class MonthlyServiceImpl implements MonthlyService {
 
     @Override
     public PageResult<MonthlyVO> page(int pageNum, int pageSize) {
-        Page<JinbMonthly> page = monthlyMapper.selectPage(new Page<>(pageNum, pageSize),
-                new LambdaQueryWrapper<JinbMonthly>().orderByDesc(JinbMonthly::getMonth));
+        Page<MisMonthly> page = monthlyMapper.selectPage(new Page<>(pageNum, pageSize),
+                new LambdaQueryWrapper<MisMonthly>().orderByDesc(MisMonthly::getMonth));
         List<MonthlyVO> vos = page.getRecords().stream().map(m -> {
             MonthlyVO vo = new MonthlyVO();
             BeanUtils.copyProperties(m, vo);
@@ -249,16 +249,16 @@ public class MonthlyServiceImpl implements MonthlyService {
 
     // ===== internal =====
 
-    private List<JinbSettlement> validSettlements(LocalDate start, LocalDate end) {
-        return settlementMapper.selectList(new LambdaQueryWrapper<JinbSettlement>()
-                .eq(JinbSettlement::getStatus, 1)
-                .between(JinbSettlement::getBillDate, start, end)
-                .orderByAsc(JinbSettlement::getId));
+    private List<MisSettlement> validSettlements(LocalDate start, LocalDate end) {
+        return settlementMapper.selectList(new LambdaQueryWrapper<MisSettlement>()
+                .eq(MisSettlement::getStatus, 1)
+                .between(MisSettlement::getBillDate, start, end)
+                .orderByAsc(MisSettlement::getId));
     }
 
-    private JinbMonthly requireByMonth(String month) {
-        return monthlyMapper.selectOne(new LambdaQueryWrapper<JinbMonthly>()
-                .eq(JinbMonthly::getMonth, month).last("limit 1"));
+    private MisMonthly requireByMonth(String month) {
+        return monthlyMapper.selectOne(new LambdaQueryWrapper<MisMonthly>()
+                .eq(MisMonthly::getMonth, month).last("limit 1"));
     }
 
     private String statusDesc(Integer status) {

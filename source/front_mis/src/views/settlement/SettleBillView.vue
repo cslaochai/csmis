@@ -49,9 +49,10 @@
         <el-table-column label="状态" width="80">
           <template #default="{ row }"><el-tag size="small" :type="statusType(row.status)">{{ row.status }}</el-tag></template>
         </el-table-column>
-        <el-table-column label="操作" width="120" fixed="right">
+        <el-table-column label="操作" width="190" fixed="right">
           <template #default="{ row }">
             <el-button link type="primary" @click.stop="openDetail(row)">明细</el-button>
+            <el-button link type="warning" @click.stop="verifyTrace(row)">追溯码核验</el-button>
             <el-button link type="danger" :disabled="row.status === '已退费' || row.status === '异常'" @click.stop="reverse(row)">退费</el-button>
           </template>
         </el-table-column>
@@ -107,6 +108,7 @@
 import { ref, reactive, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { listBills, getBillDetail, reverseBill } from '@/api/insurance'
+import { traceVerifyBill } from '@/api/supervise'
 import { INSURANCE_TYPES } from '@/lib/dict'
 import { PAGE_SIZES } from '@/lib/pagination'
 
@@ -156,6 +158,15 @@ async function reverse(row) {
   if (res.data.ok) {
     ElMessage.success('已退费')
     load()
+  }
+}
+/** 追溯码核验：对本单药品类明细逐条匹配追溯码，核验通过即核销，异常写入核验日志 */
+async function verifyTrace(row) {
+  const res = await traceVerifyBill(row.billNo)
+  if (res.data.ok) {
+    ElMessage.success(`结算单 ${row.billNo} 已核验 ${res.data.matched ?? 0} 条药品明细的追溯码`)
+  } else {
+    ElMessage.warning(res.data.error || '核验失败')
   }
 }
 onMounted(load)

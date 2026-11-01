@@ -21,7 +21,7 @@ public class EmployeeVO implements Serializable {
     private Long id;
     private String empCode;
     private String empName;
-    /** 员工类型（mss_emp_type 字典） */
+    /** 员工类型（sys_emp_type 字典） */
     private Integer empType;
     private Integer gender;
     @JsonFormat(pattern = "yyyy-MM-dd")

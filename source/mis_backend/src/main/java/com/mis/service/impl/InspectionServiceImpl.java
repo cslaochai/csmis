@@ -8,12 +8,12 @@ import com.mis.dto.InspectionFinishDTO;
 import com.mis.dto.InspectionItemUpsertDTO;
 import com.mis.dto.InspectionQueryDTO;
 import com.mis.dto.InspectionUpsertDTO;
-import com.mis.entity.MssInspection;
-import com.mis.entity.MssInspectionItem;
-import com.mis.entity.MssRecover;
-import com.mis.mapper.MssInspectionItemMapper;
-import com.mis.mapper.MssInspectionMapper;
-import com.mis.mapper.MssRecoverMapper;
+import com.mis.entity.MifInspection;
+import com.mis.entity.MifInspectionItem;
+import com.mis.entity.MifRecover;
+import com.mis.mapper.MifInspectionItemMapper;
+import com.mis.mapper.MifInspectionMapper;
+import com.mis.mapper.MifRecoverMapper;
 import com.mis.service.InspectionService;
 import com.mis.vo.ActionVO;
 import com.mis.vo.InspectionDetailVO;
@@ -35,29 +35,29 @@ public class InspectionServiceImpl implements InspectionService {
 
     private static final DateTimeFormatter DAY = DateTimeFormatter.ofPattern("yyyyMMdd");
 
-    private final MssInspectionMapper inspectionMapper;
-    private final MssInspectionItemMapper itemMapper;
-    private final MssRecoverMapper recoverMapper;
+    private final MifInspectionMapper inspectionMapper;
+    private final MifInspectionItemMapper itemMapper;
+    private final MifRecoverMapper recoverMapper;
     private final MisProperties properties;
 
     @Override
     public PageVO<InspectionVO> inspectionPage(InspectionQueryDTO q) {
-        Page<MssInspection> page = new Page<>(q.getPage(), q.getSize());
-        LambdaQueryWrapper<MssInspection> w = new LambdaQueryWrapper<>();
+        Page<MifInspection> page = new Page<>(q.getPage(), q.getSize());
+        LambdaQueryWrapper<MifInspection> w = new LambdaQueryWrapper<>();
         if (hasText(q.getKeyword())) {
             String kw = q.getKeyword().trim();
-            w.and(x -> x.like(MssInspection::getInspectionNo, kw)
-                    .or().like(MssInspection::getTitle, kw)
-                    .or().like(MssInspection::getTargetOrg, kw));
+            w.and(x -> x.like(MifInspection::getInspectionNo, kw)
+                    .or().like(MifInspection::getTitle, kw)
+                    .or().like(MifInspection::getTargetOrg, kw));
         }
         if (hasText(q.getInspectType())) {
-            w.eq(MssInspection::getInspectType, q.getInspectType());
+            w.eq(MifInspection::getInspectType, q.getInspectType());
         }
         if (hasText(q.getStatus())) {
-            w.eq(MssInspection::getStatus, q.getStatus());
+            w.eq(MifInspection::getStatus, q.getStatus());
         }
-        w.orderByDesc(MssInspection::getId);
-        Page<MssInspection> res = inspectionMapper.selectPage(page, w);
+        w.orderByDesc(MifInspection::getId);
+        Page<MifInspection> res = inspectionMapper.selectPage(page, w);
         List<InspectionVO> vos = res.getRecords().stream().map(t -> {
             InspectionVO vo = new InspectionVO();
             BeanUtils.copyProperties(t, vo);
@@ -68,9 +68,9 @@ public class InspectionServiceImpl implements InspectionService {
 
     @Override
     public ActionVO upsert(InspectionUpsertDTO dto) {
-        MssInspection t;
+        MifInspection t;
         if (dto.getId() == null) {
-            t = new MssInspection();
+            t = new MifInspection();
             t.setInspectionNo("FJ" + LocalDate.now().format(DAY)
                     + String.format("%03d", inspectionMapper.selectCount(null) + 1));
             t.setStatus("草稿");
@@ -98,7 +98,7 @@ public class InspectionServiceImpl implements InspectionService {
 
     @Override
     public ActionVO start(Long id) {
-        MssInspection t = inspectionMapper.selectById(id);
+        MifInspection t = inspectionMapper.selectById(id);
         if (t == null) {
             return ActionVO.fail("任务不存在");
         }
@@ -112,7 +112,7 @@ public class InspectionServiceImpl implements InspectionService {
 
     @Override
     public ActionVO finish(InspectionFinishDTO dto) {
-        MssInspection t = inspectionMapper.selectById(dto.getId());
+        MifInspection t = inspectionMapper.selectById(dto.getId());
         if (t == null) {
             return ActionVO.fail("任务不存在");
         }
@@ -127,15 +127,15 @@ public class InspectionServiceImpl implements InspectionService {
 
     @Override
     public InspectionDetailVO getDetail(Long id) {
-        MssInspection t = inspectionMapper.selectById(id);
+        MifInspection t = inspectionMapper.selectById(id);
         if (t == null) {
             return null;
         }
-        List<MssInspectionItem> items = itemMapper.selectList(new LambdaQueryWrapper<MssInspectionItem>()
-                .eq(MssInspectionItem::getInspectionId, id)
-                .orderByAsc(MssInspectionItem::getId));
+        List<MifInspectionItem> items = itemMapper.selectList(new LambdaQueryWrapper<MifInspectionItem>()
+                .eq(MifInspectionItem::getInspectionId, id)
+                .orderByAsc(MifInspectionItem::getId));
         BigDecimal total = BigDecimal.ZERO;
-        for (MssInspectionItem it : items) {
+        for (MifInspectionItem it : items) {
             if (it.getInvolvedAmount() != null) {
                 total = total.add(it.getInvolvedAmount());
             }
@@ -151,7 +151,7 @@ public class InspectionServiceImpl implements InspectionService {
         return vo;
     }
 
-    private InspectionVO toInspectionVO(MssInspection t) {
+    private InspectionVO toInspectionVO(MifInspection t) {
         InspectionVO vo = new InspectionVO();
         BeanUtils.copyProperties(t, vo);
         return vo;
@@ -159,14 +159,14 @@ public class InspectionServiceImpl implements InspectionService {
 
     @Override
     public ActionVO addItem(InspectionItemUpsertDTO dto) {
-        MssInspection t = inspectionMapper.selectById(dto.getInspectionId());
+        MifInspection t = inspectionMapper.selectById(dto.getInspectionId());
         if (t == null) {
             return ActionVO.fail("任务不存在");
         }
         if (!"检查中".equals(t.getStatus())) {
             return ActionVO.fail("仅检查中的任务可录入问题");
         }
-        MssInspectionItem item = new MssInspectionItem();
+        MifInspectionItem item = new MifInspectionItem();
         item.setInspectionId(dto.getInspectionId());
         item.setProblemType(dto.getProblemType());
         item.setProblemDesc(dto.getProblemDesc());
@@ -179,7 +179,7 @@ public class InspectionServiceImpl implements InspectionService {
 
     @Override
     public ActionVO deleteItem(Long id) {
-        MssInspectionItem item = itemMapper.selectById(id);
+        MifInspectionItem item = itemMapper.selectById(id);
         if (item == null) {
             return ActionVO.fail("问题记录不存在");
         }
@@ -190,23 +190,23 @@ public class InspectionServiceImpl implements InspectionService {
 
     @Override
     public ActionVO toRecover(Long id) {
-        MssInspection t = inspectionMapper.selectById(id);
+        MifInspection t = inspectionMapper.selectById(id);
         if (t == null) {
             return ActionVO.fail("任务不存在");
         }
-        List<MssInspectionItem> items = itemMapper.selectList(new LambdaQueryWrapper<MssInspectionItem>()
-                .eq(MssInspectionItem::getInspectionId, id)
-                .eq(MssInspectionItem::getDispose, "追回"));
+        List<MifInspectionItem> items = itemMapper.selectList(new LambdaQueryWrapper<MifInspectionItem>()
+                .eq(MifInspectionItem::getInspectionId, id)
+                .eq(MifInspectionItem::getDispose, "追回"));
         if (items.isEmpty()) {
             return ActionVO.fail("请先录入处置方式为「追回」的问题明细");
         }
         BigDecimal amount = BigDecimal.ZERO;
-        for (MssInspectionItem it : items) {
+        for (MifInspectionItem it : items) {
             if (it.getInvolvedAmount() != null) {
                 amount = amount.add(it.getInvolvedAmount());
             }
         }
-        MssRecover r = new MssRecover();
+        MifRecover r = new MifRecover();
         r.setRecoverNo("ZJ" + LocalDate.now().format(DAY)
                 + String.format("%03d", recoverMapper.selectCount(null) + 1));
         r.setSourceType(2);

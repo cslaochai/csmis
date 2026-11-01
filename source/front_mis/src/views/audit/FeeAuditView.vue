@@ -48,10 +48,13 @@
         <el-table-column label="状态" width="90">
           <template #default="{ row }"><el-tag size="small" :type="statusType(row.status)">{{ row.status }}</el-tag></template>
         </el-table-column>
-        <el-table-column label="操作" width="150" fixed="right">
+        <el-table-column label="操作" width="260" fixed="right">
           <template #default="{ row }">
             <el-button link type="success" :disabled="row.status !== '待审核'" @click="pass(row)">通过</el-button>
             <el-button link type="danger" :disabled="row.status !== '待审核'" @click="reject(row)">驳回</el-button>
+            <el-button link type="warning" :disabled="row.status !== '已驳回'" @click="appeal(row)">申诉</el-button>
+            <el-button link type="primary" :disabled="row.status !== '已申诉'" @click="review(row)">复审</el-button>
+            <el-button link type="info" :disabled="!['已申诉','复审通过','复审维持'].includes(row.status)" @click="confer(row)">合议</el-button>
           </template>
         </el-table-column>
       </el-table>
@@ -69,8 +72,8 @@
 
 <script setup>
 import { ref, reactive, computed, onMounted } from 'vue'
-import { ElMessage } from 'element-plus'
-import { feeAuditList, auditPass, auditReject } from '@/api/insurance'
+import { ElMessage, ElMessageBox } from 'element-plus'
+import { feeAuditList, auditPass, auditReject, auditAppeal, auditReview, auditConfer } from '@/api/insurance'
 import { PAGE_SIZES } from '@/lib/pagination'
 
 const list = ref([])
@@ -85,7 +88,7 @@ function fmt(n) {
   return (n ?? 0).toLocaleString('zh-CN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
 }
 function statusType(s) {
-  return { 待审核: 'warning', 已通过: 'success', 已驳回: 'danger' }[s] || 'info'
+  return { 待审核: 'warning', 已通过: 'success', 已驳回: 'danger', 已申诉: 'warning', 复审通过: 'success', 复审维持: 'danger', 已合议: 'info' }[s] || 'info'
 }
 function payClassType(c) {
   return { 甲: 'success', 乙: 'warning', 丙: 'danger' }[c] || 'info'
@@ -110,6 +113,21 @@ async function reject(row) {
   await auditReject(row.id)
   ElMessage.warning('已驳回')
   load()
+}
+async function appeal(row) {
+  const { value } = await ElMessageBox.prompt('请输入申诉理由', '机构申诉', { inputType: 'textarea' })
+  const res = await auditAppeal({ id: row.id, appealReason: value })
+  if (res.data.ok) { ElMessage.success('已提起申诉'); load() } else ElMessage.warning(res.data.error || '失败')
+}
+async function review(row) {
+  const { value } = await ElMessageBox.prompt('请输入复审意见', '复审（通过/维持）', { inputType: 'textarea' })
+  const res = await auditReview({ id: row.id, reviewResult: '复审维持', reviewOpinion: value })
+  if (res.data.ok) { ElMessage.success('已复审（维持）'); load() } else ElMessage.warning(res.data.error || '失败')
+}
+async function confer(row) {
+  const { value } = await ElMessageBox.prompt('请输入合议意见', '合议终裁', { inputType: 'textarea' })
+  const res = await auditConfer({ id: row.id, conferOpinion: value })
+  if (res.data.ok) { ElMessage.success('已合议终裁'); load() } else ElMessage.warning(res.data.error || '失败')
 }
 onMounted(load)
 </script>

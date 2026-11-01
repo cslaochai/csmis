@@ -18,7 +18,7 @@ public class DepartmentUpsertDTO implements Serializable {
     @NotBlank(message = "部门名称不能为空")
     private String deptName;
 
-    /** 科室类型（mss_dept_type 字典：1-前台经办 2-审核稽核 3-基金财务 4-综合管理） */
+    /** 科室类型（sys_dept_type 字典：1-前台经办 2-审核稽核 3-基金财务 4-综合管理） */
     private Integer deptType;
 
     private Long parentId;

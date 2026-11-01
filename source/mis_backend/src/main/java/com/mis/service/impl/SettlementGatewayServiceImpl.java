@@ -9,12 +9,12 @@ import com.mis.config.MisProperties;
 import com.mis.dto.CancelSettlementDTO;
 import com.mis.dto.UploadSettlementDTO;
 import com.mis.engine.PolicyEngine;
-import com.mis.entity.JinbInsuredPerson;
-import com.mis.entity.JinbMessage;
-import com.mis.entity.JinbSettlement;
-import com.mis.mapper.JinbInsuredPersonMapper;
-import com.mis.mapper.JinbMessageMapper;
-import com.mis.mapper.JinbSettlementMapper;
+import com.mis.entity.MisInsuredPerson;
+import com.mis.entity.MisMessage;
+import com.mis.entity.MisSettlement;
+import com.mis.mapper.MisInsuredPersonMapper;
+import com.mis.mapper.MisMessageMapper;
+import com.mis.mapper.MisSettlementMapper;
 import com.mis.service.SettlementGatewayService;
 import com.mis.vo.DayBillItemVO;
 import com.mis.vo.ReceiptVO;
@@ -39,16 +39,16 @@ public class SettlementGatewayServiceImpl implements SettlementGatewayService {
     private static final DateTimeFormatter DT = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
     private static final DateTimeFormatter DAY = DateTimeFormatter.ofPattern("yyyyMMdd");
 
-    private final JinbSettlementMapper settlementMapper;
-    private final JinbMessageMapper messageMapper;
-    private final JinbInsuredPersonMapper personMapper;
+    private final MisSettlementMapper settlementMapper;
+    private final MisMessageMapper messageMapper;
+    private final MisInsuredPersonMapper personMapper;
     private final PolicyEngine policyEngine;
     private final MisProperties properties;
     private final ObjectMapper objectMapper;
 
-    public SettlementGatewayServiceImpl(JinbSettlementMapper settlementMapper,
-                                        JinbMessageMapper messageMapper,
-                                        JinbInsuredPersonMapper personMapper,
+    public SettlementGatewayServiceImpl(MisSettlementMapper settlementMapper,
+                                        MisMessageMapper messageMapper,
+                                        MisInsuredPersonMapper personMapper,
                                         PolicyEngine policyEngine,
                                         MisProperties properties,
                                         ObjectMapper objectMapper) {
@@ -104,7 +104,7 @@ public class SettlementGatewayServiceImpl implements SettlementGatewayService {
         }
 
         // 2) 幂等：同一 tradeNo 已成功接收过，直接回原回执
-        JinbSettlement exist = byTradeNo(dto.getTradeNo());
+        MisSettlement exist = byTradeNo(dto.getTradeNo());
         if (exist != null) {
             return successReceipt(dto, exist.getReceiptNo(), settlementNo, exist.getPoolConfirm(),
                     "重复上传，已按原回执幂等返回", replyTime);
@@ -116,8 +116,8 @@ public class SettlementGatewayServiceImpl implements SettlementGatewayService {
         String insuranceType = dto.getPatient() == null ? null : dto.getPatient().getInsuranceType();
         String encounterType = dto.getVisit() == null ? null : dto.getVisit().getEncounterType();
         if (StringUtils.hasText(idCard)) {
-            JinbInsuredPerson person = personMapper.selectOne(new LambdaQueryWrapper<JinbInsuredPerson>()
-                    .eq(JinbInsuredPerson::getIdCard, idCard).last("limit 1"));
+            MisInsuredPerson person = personMapper.selectOne(new LambdaQueryWrapper<MisInsuredPerson>()
+                    .eq(MisInsuredPerson::getIdCard, idCard).last("limit 1"));
             if (person == null) {
                 warn = "参保人未在本统筹区登记，按报文中险种兜底接收";
             } else if (person.getPersonStatus() != null && person.getPersonStatus() == 0) {
@@ -129,7 +129,7 @@ public class SettlementGatewayServiceImpl implements SettlementGatewayService {
         BigDecimal poolConfirm = policyEngine.confirmPool(insuranceType, encounterType, total);
 
         // 5) 落平台侧结算单
-        JinbSettlement s = new JinbSettlement();
+        MisSettlement s = new MisSettlement();
         s.setTradeNo(dto.getTradeNo());
         s.setSettlementNo(settlementNo);
         s.setFixMedinsCode(StringUtils.hasText(dto.getFixMedinsCode())
@@ -173,9 +173,9 @@ public class SettlementGatewayServiceImpl implements SettlementGatewayService {
             return failCancel("撤销报文缺少被撤销单据 origTradeNo", dto, replyTime, rawPayload);
         }
 
-        JinbSettlement original = settlementMapper.selectOne(new LambdaQueryWrapper<JinbSettlement>()
-                .eq(JinbSettlement::getTradeNo, dto.getOrigTradeNo())
-                .orderByDesc(JinbSettlement::getId).last("limit 1"));
+        MisSettlement original = settlementMapper.selectOne(new LambdaQueryWrapper<MisSettlement>()
+                .eq(MisSettlement::getTradeNo, dto.getOrigTradeNo())
+                .orderByDesc(MisSettlement::getId).last("limit 1"));
         if (original == null) {
             return failCancel("原上传流水不存在：" + dto.getOrigTradeNo(), dto, replyTime, rawPayload);
         }
@@ -198,17 +198,17 @@ public class SettlementGatewayServiceImpl implements SettlementGatewayService {
     }
 
     /** 撤销冲正连带退个账：按 account_deduct 原额退回参保人（先按医保卡号找人，退化为身份证）。 */
-    private void refundAccountOnRevoke(JinbSettlement original) {
+    private void refundAccountOnRevoke(MisSettlement original) {
         java.math.BigDecimal deduct = original.getAccountDeduct();
         if (deduct == null || deduct.signum() <= 0) {
             return;
         }
-        JinbInsuredPerson person = personMapper.selectOne(new LambdaQueryWrapper<JinbInsuredPerson>()
-                .eq(JinbInsuredPerson::getInsuranceNo, original.getInsuranceNo())
+        MisInsuredPerson person = personMapper.selectOne(new LambdaQueryWrapper<MisInsuredPerson>()
+                .eq(MisInsuredPerson::getInsuranceNo, original.getInsuranceNo())
                 .last("limit 1"));
         if (person == null && original.getIdCard() != null) {
-            person = personMapper.selectOne(new LambdaQueryWrapper<JinbInsuredPerson>()
-                    .eq(JinbInsuredPerson::getIdCard, original.getIdCard())
+            person = personMapper.selectOne(new LambdaQueryWrapper<MisInsuredPerson>()
+                    .eq(MisInsuredPerson::getIdCard, original.getIdCard())
                     .last("limit 1"));
         }
         if (person == null) {
@@ -226,12 +226,12 @@ public class SettlementGatewayServiceImpl implements SettlementGatewayService {
     @Override
     public List<DayBillItemVO> dayBill(String billDate) {
         LocalDate date = LocalDate.parse(billDate);
-        List<JinbSettlement> list = settlementMapper.selectList(new LambdaQueryWrapper<JinbSettlement>()
-                .eq(JinbSettlement::getBillDate, date)
-                .eq(JinbSettlement::getStatus, 1)
-                .orderByAsc(JinbSettlement::getId));
+        List<MisSettlement> list = settlementMapper.selectList(new LambdaQueryWrapper<MisSettlement>()
+                .eq(MisSettlement::getBillDate, date)
+                .eq(MisSettlement::getStatus, 1)
+                .orderByAsc(MisSettlement::getId));
         List<DayBillItemVO> result = new ArrayList<>(list.size());
-        for (JinbSettlement s : list) {
+        for (MisSettlement s : list) {
             DayBillItemVO item = new DayBillItemVO();
             item.setTradeNo(s.getTradeNo());
             item.setSettlementNo(s.getSettlementNo());
@@ -247,19 +247,19 @@ public class SettlementGatewayServiceImpl implements SettlementGatewayService {
     public PageVO<SettlementVO> settlementPage(String month, Integer status, String patientName,
                                               String settlementNo, String billNo, String tradeNo,
                                               int pageNum, int pageSize) {
-        LambdaQueryWrapper<JinbSettlement> wrapper = new LambdaQueryWrapper<>();
+        LambdaQueryWrapper<MisSettlement> wrapper = new LambdaQueryWrapper<>();
         if (StringUtils.hasText(month)) {
             LocalDate start = LocalDate.parse(month + "-01");
             LocalDate end = start.withDayOfMonth(start.lengthOfMonth());
-            wrapper.between(JinbSettlement::getBillDate, start, end);
+            wrapper.between(MisSettlement::getBillDate, start, end);
         }
-        wrapper.eq(status != null, JinbSettlement::getStatus, status);
-        wrapper.like(StringUtils.hasText(patientName), JinbSettlement::getPatientName, patientName);
-        wrapper.like(StringUtils.hasText(settlementNo), JinbSettlement::getSettlementNo, settlementNo);
-        wrapper.like(StringUtils.hasText(billNo), JinbSettlement::getBillNo, billNo);
-        wrapper.like(StringUtils.hasText(tradeNo), JinbSettlement::getTradeNo, tradeNo);
-        wrapper.orderByDesc(JinbSettlement::getId);
-        Page<JinbSettlement> page = settlementMapper.selectPage(new Page<>(pageNum, pageSize), wrapper);
+        wrapper.eq(status != null, MisSettlement::getStatus, status);
+        wrapper.like(StringUtils.hasText(patientName), MisSettlement::getPatientName, patientName);
+        wrapper.like(StringUtils.hasText(settlementNo), MisSettlement::getSettlementNo, settlementNo);
+        wrapper.like(StringUtils.hasText(billNo), MisSettlement::getBillNo, billNo);
+        wrapper.like(StringUtils.hasText(tradeNo), MisSettlement::getTradeNo, tradeNo);
+        wrapper.orderByDesc(MisSettlement::getId);
+        Page<MisSettlement> page = settlementMapper.selectPage(new Page<>(pageNum, pageSize), wrapper);
         // 列表不带原始报文，明细接口再返回，避免分页体积过大
         List<SettlementVO> vos = page.getRecords().stream()
                 .map(s -> toVO(s, false)).collect(Collectors.toList());
@@ -271,11 +271,11 @@ public class SettlementGatewayServiceImpl implements SettlementGatewayService {
         if (id == null) {
             return null;
         }
-        JinbSettlement s = settlementMapper.selectById(id);
+        MisSettlement s = settlementMapper.selectById(id);
         return s == null ? null : toVO(s, true);
     }
 
-    private SettlementVO toVO(JinbSettlement s, boolean withPayload) {
+    private SettlementVO toVO(MisSettlement s, boolean withPayload) {
         SettlementVO vo = new SettlementVO();
         BeanUtils.copyProperties(s, vo);
         if (!withPayload) {
@@ -286,17 +286,17 @@ public class SettlementGatewayServiceImpl implements SettlementGatewayService {
 
     // ===== internal =====
 
-    private JinbSettlement byTradeNo(String tradeNo) {
+    private MisSettlement byTradeNo(String tradeNo) {
         if (!StringUtils.hasText(tradeNo)) {
             return null;
         }
-        return settlementMapper.selectOne(new LambdaQueryWrapper<JinbSettlement>()
-                .eq(JinbSettlement::getTradeNo, tradeNo).last("limit 1"));
+        return settlementMapper.selectOne(new LambdaQueryWrapper<MisSettlement>()
+                .eq(MisSettlement::getTradeNo, tradeNo).last("limit 1"));
     }
 
     private void saveMessage(String msgType, String tradeNo, String origTradeNo, int success,
                              String receiptNo, String errMsg, String payload) {
-        JinbMessage msg = new JinbMessage();
+        MisMessage msg = new MisMessage();
         msg.setMsgType(msgType);
         msg.setTradeNo(tradeNo);
         msg.setOrigTradeNo(origTradeNo);

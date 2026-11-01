@@ -8,10 +8,10 @@ import com.mis.config.LoginUser;
 import com.mis.config.UserContext;
 import com.mis.dto.RoleMenuSaveDTO;
 import com.mis.dto.RoleUpsertDTO;
-import com.mis.entity.MssRole;
-import com.mis.entity.MssRoleMenu;
-import com.mis.mapper.MssRoleMapper;
-import com.mis.mapper.MssRoleMenuMapper;
+import com.mis.entity.SysRole;
+import com.mis.entity.SysRoleMenu;
+import com.mis.mapper.SysRoleMapper;
+import com.mis.mapper.SysRoleMenuMapper;
 import com.mis.service.SystemRoleService;
 import com.mis.vo.RoleListVO;
 import com.mis.vo.RoleVO;
@@ -25,38 +25,38 @@ import java.util.List;
 import java.util.stream.Collectors;
 
 /**
- * 角色管理实现（授权 = 整单替换 mss_role_menu）
+ * 角色管理实现（授权 = 整单替换 sys_role_menu）
  */
 @Service
 @RequiredArgsConstructor
 public class SystemRoleServiceImpl implements SystemRoleService {
 
-    private final MssRoleMapper roleMapper;
-    private final MssRoleMenuMapper roleMenuMapper;
+    private final SysRoleMapper roleMapper;
+    private final SysRoleMenuMapper roleMenuMapper;
 
     @Override
     public PageResult<RoleListVO> page(String keyword, long pageNum, long pageSize) {
-        Page<MssRole> page = roleMapper.selectPage(new Page<>(pageNum, pageSize),
-                new LambdaQueryWrapper<MssRole>()
+        Page<SysRole> page = roleMapper.selectPage(new Page<>(pageNum, pageSize),
+                new LambdaQueryWrapper<SysRole>()
                         .and(keyword != null && !keyword.isEmpty(), w -> w
-                                .like(MssRole::getRoleName, keyword)
+                                .like(SysRole::getRoleName, keyword)
                                 .or()
-                                .like(MssRole::getRoleCode, keyword))
-                        .orderByAsc(MssRole::getSortOrder)
-                        .orderByAsc(MssRole::getId));
+                                .like(SysRole::getRoleCode, keyword))
+                        .orderByAsc(SysRole::getSortOrder)
+                        .orderByAsc(SysRole::getId));
         List<RoleListVO> vos = page.getRecords().stream().map(this::toListVO).collect(Collectors.toList());
         return PageResult.of(page.getTotal(), page.getCurrent(), page.getSize(), page.getPages(), vos);
     }
 
     @Override
     public List<RoleListVO> selectList() {
-        return roleMapper.selectList(new LambdaQueryWrapper<MssRole>()
-                        .eq(MssRole::getStatus, 1)
-                        .orderByAsc(MssRole::getSortOrder))
+        return roleMapper.selectList(new LambdaQueryWrapper<SysRole>()
+                        .eq(SysRole::getStatus, 1)
+                        .orderByAsc(SysRole::getSortOrder))
                 .stream().map(this::toListVO).collect(Collectors.toList());
     }
 
-    private RoleListVO toListVO(MssRole role) {
+    private RoleListVO toListVO(SysRole role) {
         RoleListVO vo = new RoleListVO();
         BeanUtils.copyProperties(role, vo);
         return vo;
@@ -73,14 +73,14 @@ public class SystemRoleServiceImpl implements SystemRoleService {
 
     @Override
     public RoleVO getDetailById(Long id) {
-        MssRole role = roleMapper.selectById(id);
+        SysRole role = roleMapper.selectById(id);
         if (role == null) {
             throw new BusinessException("角色不存在");
         }
         return toDetailVO(role, menuIdsOfRole(id));
     }
 
-    private RoleVO toDetailVO(MssRole role, List<Long> menuIds) {
+    private RoleVO toDetailVO(SysRole role, List<Long> menuIds) {
         RoleVO vo = new RoleVO();
         BeanUtils.copyProperties(role, vo);
         vo.setMenuIds(menuIds);
@@ -90,7 +90,7 @@ public class SystemRoleServiceImpl implements SystemRoleService {
     @Override
     @Transactional(rollbackFor = Exception.class)
     public RoleVO upsert(RoleUpsertDTO dto) {
-        MssRole role = new MssRole();
+        SysRole role = new SysRole();
         BeanUtils.copyProperties(dto, role);
         String operator = operatorName();
 
@@ -100,8 +100,8 @@ public class SystemRoleServiceImpl implements SystemRoleService {
                 dto.setRoleCode(generateRoleCode());
                 role.setRoleCode(dto.getRoleCode());
             }
-            Long exist = roleMapper.selectCount(new LambdaQueryWrapper<MssRole>()
-                    .eq(MssRole::getRoleCode, dto.getRoleCode()));
+            Long exist = roleMapper.selectCount(new LambdaQueryWrapper<SysRole>()
+                    .eq(SysRole::getRoleCode, dto.getRoleCode()));
             if (exist != null && exist > 0) {
                 throw new BusinessException("角色编码已存在");
             }
@@ -117,7 +117,7 @@ public class SystemRoleServiceImpl implements SystemRoleService {
 
         // 授权整单替换：本表无 del_flag，先物理删再插
         if (dto.getMenuIds() != null) {
-            roleMenuMapper.delete(new LambdaQueryWrapper<MssRoleMenu>().eq(MssRoleMenu::getRoleId, role.getId()));
+            roleMenuMapper.delete(new LambdaQueryWrapper<SysRoleMenu>().eq(SysRoleMenu::getRoleId, role.getId()));
             insertRoleMenus(role.getId(), dto.getMenuIds());
         }
         return toDetailVO(role, dto.getMenuIds());
@@ -126,12 +126,12 @@ public class SystemRoleServiceImpl implements SystemRoleService {
     @Override
     @Transactional(rollbackFor = Exception.class)
     public void deleteById(Long id) {
-        MssRole role = roleMapper.selectById(id);
+        SysRole role = roleMapper.selectById(id);
         if (role == null) {
             throw new BusinessException("角色不存在");
         }
         roleMapper.deleteById(id);
-        roleMenuMapper.delete(new LambdaQueryWrapper<MssRoleMenu>().eq(MssRoleMenu::getRoleId, id));
+        roleMenuMapper.delete(new LambdaQueryWrapper<SysRoleMenu>().eq(SysRoleMenu::getRoleId, id));
     }
 
     @Override
@@ -142,11 +142,11 @@ public class SystemRoleServiceImpl implements SystemRoleService {
     @Override
     @Transactional(rollbackFor = Exception.class)
     public void saveRoleMenu(RoleMenuSaveDTO dto) {
-        MssRole role = roleMapper.selectById(dto.getRoleId());
+        SysRole role = roleMapper.selectById(dto.getRoleId());
         if (role == null) {
             throw new BusinessException("角色不存在");
         }
-        roleMenuMapper.delete(new LambdaQueryWrapper<MssRoleMenu>().eq(MssRoleMenu::getRoleId, dto.getRoleId()));
+        roleMenuMapper.delete(new LambdaQueryWrapper<SysRoleMenu>().eq(SysRoleMenu::getRoleId, dto.getRoleId()));
         insertRoleMenus(dto.getRoleId(), dto.getMenuIds());
     }
 
@@ -155,20 +155,20 @@ public class SystemRoleServiceImpl implements SystemRoleService {
         String code;
         do {
             code = "ROLE_" + String.format("%03d", ++max);
-        } while (roleMapper.selectCount(new LambdaQueryWrapper<MssRole>()
-                .eq(MssRole::getRoleCode, code)) > 0);
+        } while (roleMapper.selectCount(new LambdaQueryWrapper<SysRole>()
+                .eq(SysRole::getRoleCode, code)) > 0);
         return code;
     }
 
     private List<Long> menuIdsOfRole(Long roleId) {
-        return roleMenuMapper.selectList(new LambdaQueryWrapper<MssRoleMenu>()
-                        .eq(MssRoleMenu::getRoleId, roleId))
-                .stream().map(MssRoleMenu::getMenuId).collect(Collectors.toList());
+        return roleMenuMapper.selectList(new LambdaQueryWrapper<SysRoleMenu>()
+                        .eq(SysRoleMenu::getRoleId, roleId))
+                .stream().map(SysRoleMenu::getMenuId).collect(Collectors.toList());
     }
 
     private void insertRoleMenus(Long roleId, List<Long> menuIds) {
         for (Long menuId : menuIds == null ? new ArrayList<Long>() : menuIds) {
-            MssRoleMenu rm = new MssRoleMenu();
+            SysRoleMenu rm = new SysRoleMenu();
             rm.setRoleId(roleId);
             rm.setMenuId(menuId);
             rm.setCreateBy(operatorName());

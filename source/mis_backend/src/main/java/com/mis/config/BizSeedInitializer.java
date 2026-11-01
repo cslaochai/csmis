@@ -21,11 +21,11 @@ import java.util.Map;
 
 /**
  * 业务数据补洞（幂等）：补齐三类此前为空的真实表 ——
- * ① 参保人扩量（mss_insured_person，从 5 条补到约 30 条）；
- * ② 机构 2304 报盘对方账（mss_settlement + mss_message 台账，近 3 个月）；
- * ③ 月度结算（mss_monthly + 扣款/拨付明细，最近月已申报、上月已拨付、上上月已清算）。
+ * ① 参保人扩量（mis_insured_person，从 5 条补到约 30 条）；
+ * ② 机构 2304 报盘对方账（mis_settlement + mis_message 台账，近 3 个月）；
+ * ③ 月度结算（mis_monthly + 扣款/拨付明细，最近月已申报、上月已拨付、上上月已清算）。
  * 数据按固定种子生成、插入即幂等（唯一键/空表判断），重启不会重复灌。
- * HIS 真实结算后续接入：HIS 侧按 2304 报文 POST /mss/gateway/2304 即自动落 mss_settlement，
+ * HIS 真实结算后续接入：HIS 侧按 2304 报文 POST /mss/gateway/2304 即自动落 mis_settlement，
  * 月度申报会从该表聚合，无需改动本类。
  */
 @Slf4j
@@ -33,18 +33,18 @@ import java.util.Map;
 @RequiredArgsConstructor
 public class BizSeedInitializer implements ApplicationRunner {
 
-    private final JinbSettlementMapper settlementMapper;
-    private final JinbMessageMapper messageMapper;
-    private final JinbMonthlyMapper monthlyMapper;
-    private final JinbMonthlyDeductMapper deductMapper;
+    private final MisSettlementMapper settlementMapper;
+    private final MisMessageMapper messageMapper;
+    private final MisMonthlyMapper monthlyMapper;
+    private final MisMonthlyDeductMapper deductMapper;
     private final JinbAllocationMapper allocationMapper;
-    private final JinbInsuredPersonMapper personMapper;
-    private final MssBillMapper billMapper;
-    private final MssAuditRuleMapper ruleMapper;
-    private final MssSuspicionMapper suspicionMapper;
-    private final MssInspectionMapper inspectionMapper;
-    private final MssInspectionItemMapper inspectionItemMapper;
-    private final MssRecoverMapper recoverMapper;
+    private final MisInsuredPersonMapper personMapper;
+    private final MisBillMapper billMapper;
+    private final MifAuditRuleMapper ruleMapper;
+    private final MifSuspicionMapper suspicionMapper;
+    private final MifInspectionMapper inspectionMapper;
+    private final MifInspectionItemMapper inspectionItemMapper;
+    private final MifRecoverMapper recoverMapper;
     private final MisProperties properties;
     private final ObjectMapper objectMapper;
 
@@ -59,8 +59,8 @@ public class BizSeedInitializer implements ApplicationRunner {
 
     @Override
     public void run(ApplicationArguments args) {
-        List<JinbInsuredPerson> insured = seedInsuredPersons();
-        List<JinbSettlement> settlements = seedSettlements(insured);
+        List<MisInsuredPerson> insured = seedInsuredPersons();
+        List<MisSettlement> settlements = seedSettlements(insured);
         seedMonthly(settlements);
         seedSupervise(settlements);
         log.info("[经办平台] 数据补洞完成：参保人{} 2304报盘{} 月度结算{} 监管疑点{}",
@@ -70,15 +70,15 @@ public class BizSeedInitializer implements ApplicationRunner {
 
     // --------------------------------------------------------------- 参保人
 
-    private List<JinbInsuredPerson> seedInsuredPersons() {
-        List<JinbInsuredPerson> existing = personMapper.selectList(null);
-        List<JinbInsuredPerson> result = new ArrayList<>(existing);
+    private List<MisInsuredPerson> seedInsuredPersons() {
+        List<MisInsuredPerson> existing = personMapper.selectList(null);
+        List<MisInsuredPerson> result = new ArrayList<>(existing);
         int target = 30;
         while (result.size() < target) {
             String name = makeName();
             String idCard = makeIdCard();
             boolean resident = rnd() > 0.55;
-            JinbInsuredPerson p = new JinbInsuredPerson();
+            MisInsuredPerson p = new MisInsuredPerson();
             p.setIdCard(idCard);
             p.setInsuranceNo("4301" + String.format("%04d", 1000 + result.size()));
             p.setName(name);
@@ -95,11 +95,11 @@ public class BizSeedInitializer implements ApplicationRunner {
 
     // --------------------------------------------------------------- 2304 报盘
 
-    private List<JinbSettlement> seedSettlements(List<JinbInsuredPerson> insured) {
+    private List<MisSettlement> seedSettlements(List<MisInsuredPerson> insured) {
         if (settlementMapper.selectCount(null) != null && settlementMapper.selectCount(null) > 0) {
             return settlementMapper.selectList(null);
         }
-        List<JinbSettlement> all = new ArrayList<>();
+        List<MisSettlement> all = new ArrayList<>();
         String medinsCode = properties.getMedins().getCode();
         LocalDate today = LocalDate.now();
         // 近 3 个月：上上月 / 上月 / 本月
@@ -112,7 +112,7 @@ public class BizSeedInitializer implements ApplicationRunner {
                 int perDay = 1 + randInt(0, 2); // 每天 1-3 条，共 60~90 条
                 for (int k = 0; k < perDay; k++) {
                     seq++;
-                    JinbInsuredPerson person = pick(insured);
+                    MisInsuredPerson person = pick(insured);
                     LocalDate billDate = ym.atDay(day);
                     BigDecimal total = bd(600 + rnd() * 31400);
                     BigDecimal insurancePay = bd(total.doubleValue() * (0.45 + rnd() * 0.4));
@@ -122,7 +122,7 @@ public class BizSeedInitializer implements ApplicationRunner {
                             + String.format("%04d", seq);
                     String settlementNo = "YB" + tradeNo.substring(2);
 
-                    JinbSettlement s = new JinbSettlement();
+                    MisSettlement s = new MisSettlement();
                     s.setTradeNo(tradeNo);
                     s.setSettlementNo(settlementNo);
                     s.setFixMedinsCode(medinsCode);
@@ -147,7 +147,7 @@ public class BizSeedInitializer implements ApplicationRunner {
                     settlementMapper.insert(s);
                     all.add(s);
 
-                    JinbMessage msg = new JinbMessage();
+                    MisMessage msg = new MisMessage();
                     msg.setMsgType("2304");
                     msg.setTradeNo(tradeNo);
                     msg.setSuccess(1);
@@ -161,7 +161,7 @@ public class BizSeedInitializer implements ApplicationRunner {
         return all;
     }
 
-    private String build2304Payload(JinbSettlement s) {
+    private String build2304Payload(MisSettlement s) {
         Map<String, Object> node = new LinkedHashMap<>();
         node.put("infcode", 0);
         node.put("msgType", "2304");
@@ -186,45 +186,45 @@ public class BizSeedInitializer implements ApplicationRunner {
 
     // --------------------------------------------------------------- 月度结算
 
-    private void seedMonthly(List<JinbSettlement> settlements) {
+    private void seedMonthly(List<MisSettlement> settlements) {
         if (monthlyMapper.selectCount(null) != null && monthlyMapper.selectCount(null) > 0) {
             return;
         }
         // 按月份聚合 2304 数据，取最近 3 个有数据的账期
-        Map<String, List<JinbSettlement>> byMonth = new java.util.TreeMap<>();
-        for (JinbSettlement s : settlements) {
+        Map<String, List<MisSettlement>> byMonth = new java.util.TreeMap<>();
+        for (MisSettlement s : settlements) {
             String m = s.getBillDate().toString().substring(0, 7);
             byMonth.computeIfAbsent(m, k -> new ArrayList<>()).add(s);
         }
-        List<Map.Entry<String, List<JinbSettlement>>> list = new ArrayList<>(byMonth.entrySet());
+        List<Map.Entry<String, List<MisSettlement>>> list = new ArrayList<>(byMonth.entrySet());
         if (list.isEmpty()) {
             return;
         }
         // 最远 → 已清算；中间 → 已拨付；最近 → 已申报
         int size = list.size();
         for (int i = 0; i < size; i++) {
-            Map.Entry<String, List<JinbSettlement>> e = list.get(i);
+            Map.Entry<String, List<MisSettlement>> e = list.get(i);
             String month = e.getKey();
-            List<JinbSettlement> ms = e.getValue();
+            List<MisSettlement> ms = e.getValue();
             int stage = i == 0 ? 4 : i == size - 1 ? 1 : 3; // 4 清算 / 1 申报 / 3 拨付
             seedOneMonth(month, ms, stage);
         }
     }
 
-    private void seedOneMonth(String month, List<JinbSettlement> ms, int stage) {
+    private void seedOneMonth(String month, List<MisSettlement> ms, int stage) {
         BigDecimal declareAmount = ms.stream()
                 .map(s -> nz(s.getInsurancePay()))
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
         declareAmount = scale(declareAmount);
 
         // 扣款明细：已审核及之后阶段从申报单中抽查
-        List<JinbMonthlyDeduct> deducts = new ArrayList<>();
+        List<MisMonthlyDeduct> deducts = new ArrayList<>();
         if (stage >= 2) {
             int n = 2 + randInt(0, 3);
             for (int i = 0; i < n && i < ms.size(); i++) {
-                JinbSettlement s = ms.get(i);
+                MisSettlement s = ms.get(i);
                 boolean reject = rnd() > 0.6;
-                JinbMonthlyDeduct d = new JinbMonthlyDeduct();
+                MisMonthlyDeduct d = new MisMonthlyDeduct();
                 d.setMonth(month);
                 d.setTradeNo(s.getTradeNo());
                 d.setSettlementNo(s.getSettlementNo());
@@ -236,13 +236,13 @@ public class BizSeedInitializer implements ApplicationRunner {
                 deducts.add(d);
             }
         }
-        BigDecimal deductAmount = deducts.stream().map(JinbMonthlyDeduct::getDeductAmount)
+        BigDecimal deductAmount = deducts.stream().map(MisMonthlyDeduct::getDeductAmount)
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
         deductAmount = scale(deductAmount);
         BigDecimal reserveAmount = scale(declareAmount.multiply(properties.getAudit().getReserveRatio()));
         BigDecimal payableAmount = scale(declareAmount.subtract(deductAmount).subtract(reserveAmount));
 
-        JinbMonthly m = new JinbMonthly();
+        MisMonthly m = new MisMonthly();
         m.setMonth(month);
         m.setFixMedinsCode(properties.getMedins().getCode());
         m.setDeclareCount(ms.size());
@@ -295,22 +295,22 @@ public class BizSeedInitializer implements ApplicationRunner {
      * 违规追回单（已追回/待追回各 1 张）、飞检任务（1 检查中 + 1 已完成）。
      * 一键稽核（/supervise/suspicion/run）会在其上增量扫描，种子数据不重复。
      */
-    private void seedSupervise(List<JinbSettlement> settlements) {
+    private void seedSupervise(List<MisSettlement> settlements) {
         if (suspicionMapper.selectCount(null) != null && suspicionMapper.selectCount(null) > 0) {
             return;
         }
-        List<MssAuditRule> rules = ruleMapper.selectList(null);
-        List<MssBill> bills = billMapper.selectList(null);
-        List<MssSuspicion> suspects = new ArrayList<>();
+        List<MifAuditRule> rules = ruleMapper.selectList(null);
+        List<MisBill> bills = billMapper.selectList(null);
+        List<MifSuspicion> suspects = new ArrayList<>();
         String today8 = LocalDate.now().format(java.time.format.DateTimeFormatter.ofPattern("yyyyMMdd"));
         int seq = 1;
 
         // 机构报盘侧疑点（取前 4 条结算单）：2 待核实 + 1 已确认 + 1 已排除
-        List<MssAuditRule> rulesSett = filterRules(rules, 2);
+        List<MifAuditRule> rulesSett = filterRules(rules, 2);
         for (int i = 0; i < 4 && i < settlements.size(); i++) {
-            JinbSettlement s = settlements.get(i);
-            MssAuditRule rule = rulesSett.isEmpty() ? null : rulesSett.get(i % rulesSett.size());
-            MssSuspicion sp = new MssSuspicion();
+            MisSettlement s = settlements.get(i);
+            MifAuditRule rule = rulesSett.isEmpty() ? null : rulesSett.get(i % rulesSett.size());
+            MifSuspicion sp = new MifSuspicion();
             sp.setSuspicionNo("YZ" + today8 + String.format("%03d", seq++));
             sp.setRuleId(rule == null ? null : rule.getId());
             sp.setRuleName(rule == null ? "分解住院" : rule.getRuleName());
@@ -342,11 +342,11 @@ public class BizSeedInitializer implements ApplicationRunner {
             suspects.add(sp);
         }
         // 经办结算单侧疑点（取前 3 条账单）：2 待核实 + 1 已确认
-        List<MssAuditRule> rulesBill = filterRules(rules, 1);
+        List<MifAuditRule> rulesBill = filterRules(rules, 1);
         for (int i = 0; i < 3 && i < bills.size(); i++) {
-            MssBill b = bills.get(i);
-            MssAuditRule rule = rulesBill.isEmpty() ? null : rulesBill.get(i % rulesBill.size());
-            MssSuspicion sp = new MssSuspicion();
+            MisBill b = bills.get(i);
+            MifAuditRule rule = rulesBill.isEmpty() ? null : rulesBill.get(i % rulesBill.size());
+            MifSuspicion sp = new MifSuspicion();
             sp.setSuspicionNo("YZ" + today8 + String.format("%03d", seq++));
             sp.setRuleId(rule == null ? null : rule.getId());
             sp.setRuleName(rule == null ? "重复收费" : rule.getRuleName());
@@ -376,15 +376,15 @@ public class BizSeedInitializer implements ApplicationRunner {
         }
 
         // 已确认疑点生成追回单：1 已追回 + 1 待追回
-        List<MssSuspicion> confirmed = new ArrayList<>();
-        for (MssSuspicion sp : suspects) {
+        List<MifSuspicion> confirmed = new ArrayList<>();
+        for (MifSuspicion sp : suspects) {
             if ("已确认".equals(sp.getStatus())) {
                 confirmed.add(sp);
             }
         }
         for (int i = 0; i < confirmed.size(); i++) {
-            MssSuspicion sp = confirmed.get(i);
-            MssRecover r = new MssRecover();
+            MifSuspicion sp = confirmed.get(i);
+            MifRecover r = new MifRecover();
             r.setRecoverNo("ZJ" + today8 + String.format("%03d", i + 1));
             r.setSourceType(1);
             r.setSourceNo(sp.getSuspicionNo());
@@ -404,7 +404,7 @@ public class BizSeedInitializer implements ApplicationRunner {
         }
 
         // 飞检任务：1 检查中（含 3 条问题明细）+ 1 已完成
-        MssInspection ins = new MssInspection();
+        MifInspection ins = new MifInspection();
         ins.setInspectionNo("FJ" + today8 + "001");
         ins.setTitle("2026 年第三季度专项飞检——重复收费与超限价");
         ins.setInspectType("专项检查");
@@ -419,7 +419,7 @@ public class BizSeedInitializer implements ApplicationRunner {
         String[] pTypes = {"重复收费", "超限价收费", "丙类项目入统筹"};
         String[] pDisposes = {"追回", "整改", "移交稽核"};
         for (int i = 0; i < 3; i++) {
-            MssInspectionItem it = new MssInspectionItem();
+            MifInspectionItem it = new MifInspectionItem();
             it.setInspectionId(ins.getId());
             it.setProblemType(pTypes[i]);
             it.setProblemDesc("抽查发现「" + pTypes[i] + "」问题 " + (i + 1) + " 例");
@@ -428,7 +428,7 @@ public class BizSeedInitializer implements ApplicationRunner {
             it.setDispose(pDisposes[i]);
             inspectionItemMapper.insert(it);
         }
-        MssInspection done = new MssInspection();
+        MifInspection done = new MifInspection();
         done.setInspectionNo("FJ" + today8 + "002");
         done.setTitle("群众举报核查——虚记诊疗项目");
         done.setInspectType("举报核查");
@@ -441,9 +441,9 @@ public class BizSeedInitializer implements ApplicationRunner {
         inspectionMapper.insert(done);
     }
 
-    private List<MssAuditRule> filterRules(List<MssAuditRule> rules, Integer target) {
-        List<MssAuditRule> out = new ArrayList<>();
-        for (MssAuditRule r : rules) {
+    private List<MifAuditRule> filterRules(List<MifAuditRule> rules, Integer target) {
+        List<MifAuditRule> out = new ArrayList<>();
+        for (MifAuditRule r : rules) {
             if (target.equals(r.getTarget())) {
                 out.add(r);
             }

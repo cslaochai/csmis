@@ -56,9 +56,18 @@
         </div>
         <div class="text-[11px] text-gray-400 mt-2">起付线 {{ fmt(dec.deductible) }} 元 · 统筹计入基数 {{ fmt(dec.basePool) }} 元（含乙/丙类先行自付）</div>
 
+        <!-- 第一道防线：事前提醒 -->
+        <el-alert v-if="precheck.length" class="mt-3" type="warning" :closable="false" show-icon
+          title="事前提醒（结算前实时比对）">
+          <div v-for="(h, i) in precheck" :key="i" class="text-[12px] leading-5">
+            <el-tag size="small" :type="riskType(h.riskLevel)">{{ riskText(h.riskLevel) }}</el-tag>
+            <span class="ml-1">{{ h.ruleName }}：{{ h.promptText }}</span>
+          </div>
+        </el-alert>
+
         <div class="mt-4 flex justify-end gap-3">
           <el-button @click="onSelect(null)">取消</el-button>
-          <el-button type="primary" :disabled="!current" @click="doSettle">确认出院结算</el-button>
+          <el-button type="primary" :disabled="!current" :loading="loading" @click="doSettle">确认出院结算</el-button>
         </div>
       </template>
       <el-empty v-else description="请从左侧选择一笔出院待结算业务" />
@@ -76,9 +85,11 @@ const current = ref(null)
 const loading = ref(false)
 
 function zeroDec() {
-  return { total: 0, insurancePay: 0, personalAccount: 0, cashPay: 0, selfPay: 0, deductible: 0, basePool: 0 }
+  return { total: 0, insurancePay: 0, personalAccount: 0, cashPay: 0, selfPay: 0, deductible: 0, basePool: 0, precheckList: [], precheckBlockFlag: 0 }
 }
 const dec = ref(zeroDec())
+/** 第一道防线：事前提醒命中项 */
+const precheck = ref([])
 
 function fmt(n) {
   return (n ?? 0).toLocaleString('zh-CN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
@@ -86,22 +97,40 @@ function fmt(n) {
 function payClassType(c) {
   return { 甲: 'success', 乙: 'warning', 丙: 'danger' }[c] || 'info'
 }
+function riskText(r) {
+  return { 1: '低', 2: '中', 3: '高' }[r] || '-'
+}
+function riskType(r) {
+  return { 1: 'info', 2: 'warning', 3: 'danger' }[r] || 'info'
+}
 async function onSelect(row) {
   current.value = row || null
   dec.value = zeroDec()
+  precheck.value = []
   if (!row) return
   const res = await previewInpatient(row.admissionNo)
-  if (res.data) dec.value = res.data
+  if (res.data) {
+    dec.value = { ...zeroDec(), ...res.data }
+    precheck.value = res.data.precheckList || []
+  }
 }
 async function doSettle() {
   loading.value = true
   const res = await settleInpatient(current.value.admissionNo)
   loading.value = false
   if (res.data.error) {
+    // 第二道防线：事中拦截拒付 / 转人工
     ElMessage.error(res.data.error)
+    await onSelect(null)
+    await load()
     return
   }
-  ElMessage.success(`出院结算成功，结算单号 ${res.data.bill.billNo}`)
+  const bill = res.data.bill
+  if (bill.status === '待审核') {
+    ElMessage.warning(`事中审核转人工，结算单 ${bill.billNo} 已置为待审核，请到费用审核处理`)
+  } else {
+    ElMessage.success(`出院结算成功，结算单号 ${bill.billNo}`)
+  }
   await onSelect(null)
   await load()
 }

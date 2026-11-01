@@ -1,14 +1,14 @@
 package com.mis.engine;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.mis.entity.JinbSettlement;
-import com.mis.entity.MssBill;
-import com.mis.entity.MssCatalog;
-import com.mis.entity.MssFeeItem;
-import com.mis.mapper.JinbSettlementMapper;
-import com.mis.mapper.MssBillMapper;
-import com.mis.mapper.MssCatalogMapper;
-import com.mis.mapper.MssFeeItemMapper;
+import com.mis.entity.MisSettlement;
+import com.mis.entity.MisBill;
+import com.mis.entity.MisCatalog;
+import com.mis.entity.MisFeeItem;
+import com.mis.mapper.MisSettlementMapper;
+import com.mis.mapper.MisBillMapper;
+import com.mis.mapper.MisCatalogMapper;
+import com.mis.mapper.MisFeeItemMapper;
 import com.mis.vo.AuditRuleVO;
 import lombok.Data;
 import lombok.RequiredArgsConstructor;
@@ -27,19 +27,19 @@ import java.util.Map;
 /**
  * 基金监管规则引擎：按启用规则扫描经办结算单 / 机构报盘数据，产出疑点候选。
  * <p>扫描结果只计算不落库（幂等判重由 SuspicionServiceImpl 负责）。
- * 规则参数从 mss_audit_rule.params（JSON）读取，缺省用各规则内置默认值。
+ * 规则参数从 mif_audit_rule.params（JSON）读取，缺省用各规则内置默认值。
  */
 @Component
 @RequiredArgsConstructor
 public class SuperviseRuleEngine {
 
-    private final MssBillMapper billMapper;
-    private final MssFeeItemMapper feeItemMapper;
-    private final MssCatalogMapper catalogMapper;
-    private final JinbSettlementMapper settlementMapper;
+    private final MisBillMapper billMapper;
+    private final MisFeeItemMapper feeItemMapper;
+    private final MisCatalogMapper catalogMapper;
+    private final MisSettlementMapper settlementMapper;
     private final ObjectMapper objectMapper;
 
-    /** 疑点候选（对应 mss_suspicion 各列） */
+    /** 疑点候选（对应 mif_suspicion 各列） */
     @Data
     public static class Draft {
         private Long ruleId;
@@ -87,17 +87,17 @@ public class SuperviseRuleEngine {
     private List<Draft> duplicateCharge(AuditRuleVO r) {
         BigDecimal minAmount = param(r, "minAmount", new BigDecimal("200"));
         List<Draft> out = new ArrayList<>();
-        List<MssBill> bills = billMapper.selectList(null);
-        Map<Long, List<MssFeeItem>> byBill = groupFeeItemsByBill();
-        for (MssBill b : bills) {
-            List<MssFeeItem> items = byBill.getOrDefault(b.getId(), List.of());
-            Map<String, List<MssFeeItem>> byName = new LinkedHashMap<>();
-            for (MssFeeItem it : items) {
+        List<MisBill> bills = billMapper.selectList(null);
+        Map<Long, List<MisFeeItem>> byBill = groupFeeItemsByBill();
+        for (MisBill b : bills) {
+            List<MisFeeItem> items = byBill.getOrDefault(b.getId(), List.of());
+            Map<String, List<MisFeeItem>> byName = new LinkedHashMap<>();
+            for (MisFeeItem it : items) {
                 String key = nz(it.getName()) + "|" + nz(it.getCategory());
                 byName.computeIfAbsent(key, k -> new ArrayList<>()).add(it);
             }
-            for (Map.Entry<String, List<MssFeeItem>> e : byName.entrySet()) {
-                List<MssFeeItem> same = e.getValue();
+            for (Map.Entry<String, List<MisFeeItem>> e : byName.entrySet()) {
+                List<MisFeeItem> same = e.getValue();
                 BigDecimal sum = sumAmount(same);
                 if (same.size() > 1 && sum.compareTo(minAmount) >= 0) {
                     Draft d = baseDraft(r, b);
@@ -115,29 +115,29 @@ public class SuperviseRuleEngine {
     private List<Draft> overLimitPrice(AuditRuleVO r) {
         BigDecimal overRatio = param(r, "overRatio", new BigDecimal("0.1"));
         List<Draft> out = new ArrayList<>();
-        Map<String, MssCatalog> catalogByCode = new HashMap<>();
-        for (MssCatalog c : catalogMapper.selectList(null)) {
+        Map<String, MisCatalog> catalogByCode = new HashMap<>();
+        for (MisCatalog c : catalogMapper.selectList(null)) {
             if (c.getLimitPrice() != null && c.getLimitPrice().compareTo(BigDecimal.ZERO) > 0) {
                 catalogByCode.put(nz(c.getYbCode()), c);
             }
         }
-        List<MssBill> bills = billMapper.selectList(null);
-        Map<Long, MssBill> billById = new HashMap<>();
-        for (MssBill b : bills) {
+        List<MisBill> bills = billMapper.selectList(null);
+        Map<Long, MisBill> billById = new HashMap<>();
+        for (MisBill b : bills) {
             billById.put(b.getId(), b);
         }
-        List<MssFeeItem> items = feeItemMapper.selectList(null);
-        for (MssFeeItem it : items) {
+        List<MisFeeItem> items = feeItemMapper.selectList(null);
+        for (MisFeeItem it : items) {
             if (it.getOwnerType() == null || it.getOwnerType() != 2) {
                 continue;
             }
-            MssCatalog c = catalogByCode.get(nz(it.getYbCode()));
+            MisCatalog c = catalogByCode.get(nz(it.getYbCode()));
             if (c == null || it.getPrice() == null || it.getQty() == null) {
                 continue;
             }
             BigDecimal over = c.getLimitPrice().multiply(BigDecimal.ONE.add(overRatio));
             if (it.getPrice().compareTo(over) > 0) {
-                MssBill b = billById.get(it.getOwnerId());
+                MisBill b = billById.get(it.getOwnerId());
                 if (b == null) {
                     continue;
                 }
@@ -158,9 +158,9 @@ public class SuperviseRuleEngine {
         int windowDays = paramInt(r, "windowDays", 15);
         int minCount = paramInt(r, "minCount", 2);
         List<Draft> out = new ArrayList<>();
-        List<JinbSettlement> all = settlementMapper.selectList(null);
-        Map<String, List<JinbSettlement>> byCard = new HashMap<>();
-        for (JinbSettlement s : all) {
+        List<MisSettlement> all = settlementMapper.selectList(null);
+        Map<String, List<MisSettlement>> byCard = new HashMap<>();
+        for (MisSettlement s : all) {
             if (s.getStatus() != null && s.getStatus() == 2) {
                 continue; // 已撤销冲正不参与
             }
@@ -172,8 +172,8 @@ public class SuperviseRuleEngine {
             }
             byCard.computeIfAbsent(s.getIdCard(), k -> new ArrayList<>()).add(s);
         }
-        for (Map.Entry<String, List<JinbSettlement>> e : byCard.entrySet()) {
-            List<JinbSettlement> list = e.getValue();
+        for (Map.Entry<String, List<MisSettlement>> e : byCard.entrySet()) {
+            List<MisSettlement> list = e.getValue();
             list.sort((a, b) -> nz(a.getBillDate()).compareTo(nz(b.getBillDate())));
             int runStart = 0;
             int runCount = 1;
@@ -198,8 +198,8 @@ public class SuperviseRuleEngine {
         return out;
     }
 
-    private Draft splitDraft(AuditRuleVO r, List<JinbSettlement> list, int start, int count, int windowDays) {
-        JinbSettlement first = list.get(start);
+    private Draft splitDraft(AuditRuleVO r, List<MisSettlement> list, int start, int count, int windowDays) {
+        MisSettlement first = list.get(start);
         BigDecimal involved = BigDecimal.ZERO;
         StringBuilder dates = new StringBuilder();
         for (int i = start; i < start + count; i++) {
@@ -232,7 +232,7 @@ public class SuperviseRuleEngine {
         int minDays = paramInt(r, "minDays", 10);
         BigDecimal maxAmount = param(r, "maxAmount", new BigDecimal("500"));
         List<Draft> out = new ArrayList<>();
-        for (MssBill b : billMapper.selectList(null)) {
+        for (MisBill b : billMapper.selectList(null)) {
             if (!"住院".equals(b.getSettleType()) || b.getAdmitDays() == null) {
                 continue;
             }
@@ -251,10 +251,10 @@ public class SuperviseRuleEngine {
     private List<Draft> abnormalCost(AuditRuleVO r) {
         BigDecimal avgTimes = param(r, "avgTimes", new BigDecimal("3"));
         List<Draft> out = new ArrayList<>();
-        List<JinbSettlement> all = settlementMapper.selectList(null);
+        List<MisSettlement> all = settlementMapper.selectList(null);
         Map<String, BigDecimal> sumByIns = new HashMap<>();
         Map<String, Integer> cntByIns = new HashMap<>();
-        for (JinbSettlement s : all) {
+        for (MisSettlement s : all) {
             if (s.getStatus() != null && s.getStatus() == 2) {
                 continue;
             }
@@ -270,7 +270,7 @@ public class SuperviseRuleEngine {
             BigDecimal avg = sumByIns.get(e.getKey()).divide(BigDecimal.valueOf(e.getValue()), 2, RoundingMode.HALF_UP);
             avgByIns.put(e.getKey(), avg);
         }
-        for (JinbSettlement s : all) {
+        for (MisSettlement s : all) {
             if (s.getStatus() != null && s.getStatus() == 2 || !"住院".equals(s.getEncounterType())) {
                 continue;
             }
@@ -306,14 +306,14 @@ public class SuperviseRuleEngine {
     private List<Draft> payclassC(AuditRuleVO r) {
         BigDecimal minAmount = param(r, "minAmount", new BigDecimal("200"));
         List<Draft> out = new ArrayList<>();
-        List<MssBill> bills = billMapper.selectList(null);
-        Map<Long, List<MssFeeItem>> byBill = groupFeeItemsByBill();
-        for (MssBill b : bills) {
+        List<MisBill> bills = billMapper.selectList(null);
+        Map<Long, List<MisFeeItem>> byBill = groupFeeItemsByBill();
+        for (MisBill b : bills) {
             if (nz(b.getInsurancePay()).compareTo(BigDecimal.ZERO) <= 0) {
                 continue;
             }
             BigDecimal cSum = BigDecimal.ZERO;
-            for (MssFeeItem it : byBill.getOrDefault(b.getId(), List.of())) {
+            for (MisFeeItem it : byBill.getOrDefault(b.getId(), List.of())) {
                 if ("丙".equals(it.getPayClass())) {
                     cSum = cSum.add(nz(it.getAmount()));
                 }
@@ -331,9 +331,9 @@ public class SuperviseRuleEngine {
 
     // ------------------------------------------------------------ 工具
 
-    private Map<Long, List<MssFeeItem>> groupFeeItemsByBill() {
-        Map<Long, List<MssFeeItem>> map = new HashMap<>();
-        for (MssFeeItem it : feeItemMapper.selectList(null)) {
+    private Map<Long, List<MisFeeItem>> groupFeeItemsByBill() {
+        Map<Long, List<MisFeeItem>> map = new HashMap<>();
+        for (MisFeeItem it : feeItemMapper.selectList(null)) {
             if (it.getOwnerType() != null && it.getOwnerType() == 2) {
                 map.computeIfAbsent(it.getOwnerId(), k -> new ArrayList<>()).add(it);
             }
@@ -341,7 +341,7 @@ public class SuperviseRuleEngine {
         return map;
     }
 
-    private Draft baseDraft(AuditRuleVO r, MssBill b) {
+    private Draft baseDraft(AuditRuleVO r, MisBill b) {
         Draft d = new Draft();
         d.setRuleId(r.getId());
         d.setRuleName(r.getRuleName());
@@ -398,15 +398,15 @@ public class SuperviseRuleEngine {
         return s == null ? "" : s;
     }
 
-    private BigDecimal sumAmount(List<MssFeeItem> items) {
+    private BigDecimal sumAmount(List<MisFeeItem> items) {
         BigDecimal sum = BigDecimal.ZERO;
-        for (MssFeeItem it : items) {
+        for (MisFeeItem it : items) {
             sum = sum.add(nz(it.getAmount()));
         }
         return sum;
     }
 
-    private BigDecimal firstPay(JinbSettlement s) {
+    private BigDecimal firstPay(MisSettlement s) {
         return nz(s.getInsurancePay());
     }
 

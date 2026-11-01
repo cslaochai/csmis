@@ -108,6 +108,15 @@ export function auditPass(id) {
 export function auditReject(id) {
   return request.post('/audit/reject', idBody(id))
 }
+export function auditAppeal(data) {
+  return request.post('/audit/appeal', data)
+}
+export function auditReview(data) {
+  return request.post('/audit/review', data)
+}
+export function auditConfer(data) {
+  return request.post('/audit/confer', data)
+}
 
 // ---------------- 月度结算管理（申报→审核→拨付→年终清算） ----------------
 export function monthlyPage(params) {
@@ -129,10 +138,53 @@ export function monthlyYearSettle(month) {
   return request.post('/monthly/yearSettle', { month })
 }
 
+// ---------------- 日拨付（按笔）管理 ----------------
+export function dailyListPage(params) {
+  return request.get('/settle/daily/listPage', { params: cleanParams(params) })
+}
+export function dailyGenerate(bizDate) {
+  return request.post('/settle/daily/generate', { bizDate })
+}
+export function dailyRemit(id) {
+  return request.post('/settle/daily/remit', idBody(id))
+}
+
 // ---------------- 参保人管理 ----------------
 export function personListPage(params) {
   return request.get('/insure/person/listPage', { params: cleanParams(params) })
 }
 export function personSave(data) {
   return request.post('/insure/person/save', data)
+}
+/** 参保状态变更（停保 / 恢复） */
+export function personStatusChange(data) {
+  return request.post('/insure/person/status', data)
+}
+
+// ---------------- 定点协议管理 ----------------
+export function agreementListPage(params) {
+  return request.get('/agreement/listPage', { params: cleanParams(params) })
+}
+export function agreementUpsert(data) {
+  return request.post('/agreement/upsert', data)
+}
+export function agreementStatus(data) {
+  return request.post('/agreement/status', data)
+}
+export function agreementAssess(id, score) {
+  return request.post('/agreement/assess', { id: String(id), score })
+}
+
+// ---------------- 手工（零星）报销 ----------------
+export function claimListPage(params) {
+  return request.get('/claim/listPage', { params: cleanParams(params) })
+}
+export function claimSubmit(data) {
+  return request.post('/claim/submit', data)
+}
+export function claimAudit(data) {
+  return request.post('/claim/audit', data)
+}
+export function claimPay(id) {
+  return request.post('/claim/pay', idBody(id))
 }

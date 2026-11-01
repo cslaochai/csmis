@@ -20,6 +20,8 @@ public class PersonSaveDTO {
     /** 险种（2-城镇职工医保 3-城乡居民医保） */
     private String insuranceType;
     private Integer personStatus;
+    /** 停保/恢复原因（变更/停保时留痕） */
+    private String statusRemark;
     private BigDecimal accountBalance;
     private String region;
 }

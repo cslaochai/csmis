@@ -4,6 +4,7 @@ import com.mis.common.base.PageResult;
 import com.mis.common.base.Result;
 import com.mis.dto.PersonQueryDTO;
 import com.mis.dto.PersonSaveDTO;
+import com.mis.dto.PersonStatusDTO;
 import com.mis.service.InsuredPersonService;
 import com.mis.vo.InsuredPersonVO;
 import jakarta.validation.Valid;
@@ -40,5 +41,11 @@ public class InsuredPersonController {
     @PostMapping("/person/save")
     public Result<InsuredPersonVO> save(@RequestBody @Valid PersonSaveDTO dto) {
         return Result.success(personService.save(dto));
+    }
+
+    /** 参保状态变更（停保 / 恢复） */
+    @PostMapping("/person/status")
+    public Result<InsuredPersonVO> changeStatus(@RequestBody @Valid PersonStatusDTO dto) {
+        return Result.success(personService.changeStatus(dto));
     }
 }
