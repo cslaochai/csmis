@@ -5,7 +5,8 @@ import axios from 'axios'
 import { ElMessage } from 'element-plus'
 
 const request = axios.create({
-  baseURL: '/mss',
+  // 本地默认 /mss；门户部署构建用 VITE_API_PREFIX=/mss-api 注入，避免与前端路由 /mss/ 同前缀串台
+  baseURL: import.meta.env.VITE_API_PREFIX || '/mss',
   timeout: 20000,
 })
 
@@ -17,7 +18,7 @@ function redirectToLogin() {
   redirectingToLogin = true
   localStorage.removeItem('token')
   localStorage.removeItem('userInfo')
-  window.location.href = '/login'
+  window.location.href = `${import.meta.env.BASE_URL}login`
 }
 
 request.interceptors.request.use(
